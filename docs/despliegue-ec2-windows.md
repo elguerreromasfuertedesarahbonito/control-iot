@@ -1,6 +1,6 @@
 # Preparar HTTPS/WSS en EC2 Windows con DuckDNS y Caddy
 
-Esta guía prepara la integración elegida; **no se ejecutaron cambios en EC2, DNS, firewall ni CORS**. El subdominio DuckDNS aún no fue proporcionado. El frontend sigue en pruebas simuladas.
+Esta guía prepara la integración elegida; **no se ejecutaron cambios en EC2, DNS, firewall ni CORS desde el asistente**. El usuario registró `excavadora-iot-rsc.duckdns.org`; la consulta DNS realizada desde el equipo de trabajo devuelve `32.194.155.66`. El certificado HTTPS todavía no se ha comprobado. El frontend sigue en pruebas simuladas.
 
 ## Por qué hace falta
 
@@ -18,13 +18,23 @@ GitHub Pages HTTPS
 
 ## 1. Registrar el nombre y verificar DNS
 
-Entra en DuckDNS, inicia sesión y registra un subdominio disponible. Asócialo a la IP pública **actual** de EC2. La IP usada antes fue `32.194.155.66`; compruébala en AWS antes de configurarla. Un cambio de IP requiere actualizar DNS; una IP elástica puede tener costos según la cuenta y el uso.
+El dominio registrado es `excavadora-iot-rsc.duckdns.org` y su registro A devuelve `32.194.155.66`. Confirma que esa siga siendo la IPv4 pública de tu EC2. Un cambio de IP requiere actualizar DNS; una IP elástica puede tener costos según la cuenta y el uso.
 
-No pegues el token de DuckDNS en el frontend, el repositorio, una captura ni este documento. Para continuar basta compartir el nombre público completo, por ejemplo `TU-SUBDOMINIO.duckdns.org`, reemplazando el marcador por el nombre realmente registrado.
+El método de validación HTTP de esta configuración no necesita el token de DuckDNS. No lo copies al frontend ni al archivo de Caddy.
 
 ## 2. Preparar el acceso a Caddy
 
-Descarga Caddy para Windows desde [su sitio oficial](https://caddyserver.com/download). En EC2, verifica que ninguna otra aplicación esté usando los puertos requeridos. Configura el grupo de seguridad de AWS y el firewall de Windows para que Caddy pueda recibir tráfico público TCP en **80 y 443**, siguiendo las políticas de tu instancia. Estos cambios deben hacerse en el servidor; esta guía no los ha realizado.
+Todo lo que sigue se realiza **dentro de EC2 Windows mediante Escritorio remoto**. Descarga Caddy para Windows amd64 desde [su sitio oficial](https://caddyserver.com/download), extrae el ejecutable y guárdalo como `C:\Caddy\caddy.exe`. Verifica que ninguna otra aplicación esté usando los puertos requeridos.
+
+En AWS abre EC2 → Instancias → tu instancia → Seguridad → grupo de seguridad → Reglas de entrada → Editar. Agrega HTTP TCP **80** y HTTPS TCP **443**, con origen IPv4 `0.0.0.0/0`, para recibir las visitas y la validación pública del certificado. La [documentación de AWS](https://repost.aws/knowledge-center/connect-http-https-ec2) describe este acceso.
+
+En PowerShell **como administrador dentro de EC2**, crea una regla de firewall limitada al ejecutable de Caddy:
+
+```powershell
+New-NetFirewallRule -DisplayName "Caddy Web IoT" -Direction Inbound -Protocol TCP -LocalPort 80,443 -Action Allow -Program "C:\Caddy\caddy.exe"
+```
+
+La [documentación de Microsoft](https://learn.microsoft.com/en-us/powershell/module/netsecurity/new-netfirewallrule) explica estos parámetros. No se han aplicado estas reglas desde el asistente.
 
 El puerto 80 permite los desafíos/redirects previstos por la configuración automática habitual y el 443 sirve HTTPS/WSS. No expongas RDS al navegador ni cambies sus credenciales para habilitar el frontend.
 
@@ -32,22 +42,30 @@ El puerto 80 permite los desafíos/redirects previstos por la configuración aut
 
 Mantén la API existente y su entorno privado. En este servidor Windows debe conservarse `python run.py`, el bucle `asyncio:SelectorEventLoop` ya corregido y **un único worker**: las DEMO y suscripciones están en memoria del proceso.
 
-Copia `deploy/Caddyfile.example` a un archivo llamado `Caddyfile` junto al ejecutable de Caddy. En la terminal de EC2, reemplaza el marcador por el nombre registrado:
+Copia el archivo preparado `deploy/Caddyfile` a `C:\Caddy\Caddyfile`, **sin extensión `.txt`**. Su contenido es:
+
+```caddyfile
+excavadora-iot-rsc.duckdns.org {
+    reverse_proxy 127.0.0.1:8000
+}
+```
+
+En otra terminal de PowerShell dentro de EC2, manteniendo la terminal de FastAPI abierta:
 
 ```powershell
-$env:IOT_HOSTNAME = 'TU-SUBDOMINIO.duckdns.org'
+cd C:\Caddy
 .\caddy.exe validate --config .\Caddyfile --adapter caddyfile
 .\caddy.exe run --config .\Caddyfile --adapter caddyfile
 ```
 
-La variable debe existir también en la cuenta del servicio si luego configuras Caddy como servicio persistente. Guarda sus certificados/datos de forma persistente para permitir la renovación. No uses un certificado autofirmado ni desactives la validación TLS en el navegador.
+`validate` comprueba la configuración, pero no demuestra que ya exista un certificado. Al ejecutar `run`, Caddy intentará obtenerlo y renovarlo automáticamente si DNS y los accesos públicos son correctos. Mantén abierto ese proceso durante esta primera comprobación; después se podrá instalar como servicio persistente. No uses un certificado autofirmado ni desactives la validación TLS en el navegador.
 
 El [proxy de Caddy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) maneja la actualización WebSocket. No hace falta crear otra ruta FastAPI ni ejecutar un segundo backend. Las URLs esperadas, todavía pendientes de verificar, serán:
 
 ```text
-https://HOST-REAL/health
-https://HOST-REAL/docs
-wss://HOST-REAL/ws/demos/1
+https://excavadora-iot-rsc.duckdns.org/health
+https://excavadora-iot-rsc.duckdns.org/docs
+wss://excavadora-iot-rsc.duckdns.org/ws/demos/1
 ```
 
 Verifica HTTPS/WSS antes de ajustar la exposición del puerto 8000. Una vez funcionando el proxy, restringe el acceso público directo a 8000 conforme al despliegue previsto; el tráfico público debe entrar por Caddy. Ten en cuenta cualquier cliente antiguo que todavía use HTTP/WS antes de retirar ese acceso. Esta actividad no conecta el microcontrolador.
@@ -67,8 +85,8 @@ Aplica el valor en la configuración privada de EC2 y reinicia el proceso de la 
 Cuando el nombre público y el certificado se hayan verificado, modifica únicamente las URLs públicas de `assets/js/config.js`:
 
 ```js
-apiBaseUrl: 'https://HOST-REAL',
-wsUrlTemplate: 'wss://HOST-REAL/ws/demos/{id_demo}',
+apiBaseUrl: 'https://excavadora-iot-rsc.duckdns.org',
+wsUrlTemplate: 'wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}',
 ```
 
 No añadas `:8000` a la URL pública de Caddy si utilizas el puerto HTTPS estándar. Conserva los IDs y rutas reales del contrato. El cliente no debe obtener ninguna credencial de RDS.

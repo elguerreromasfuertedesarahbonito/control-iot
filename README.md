@@ -6,7 +6,7 @@ Desarrollado por **Ricardo de Jesus Serrano Cortes · 2026**.
 
 ## Estado de esta entrega
 
-El frontend está implementado, con **29 pruebas simuladas aprobadas** y revisión visual de escritorio/móvil. **No se han ejecutado órdenes contra EC2 ni se ha comprobado una publicación de GitHub Pages.** Las URLs HTTPS/WSS y el nombre DuckDNS siguen pendientes. No se deben presentar capturas del modo simulado como evidencias de AWS, RDS, WebSocket real o movimiento físico. El alcance comprobado está en [validacion-local.md](docs/validacion-local.md).
+El frontend está implementado, con **29 pruebas simuladas aprobadas** y revisión visual de escritorio/móvil. **No se han ejecutado órdenes contra EC2 ni se ha comprobado una publicación de GitHub Pages.** El dominio `excavadora-iot-rsc.duckdns.org` ya devuelve `32.194.155.66`; falta activar y verificar HTTPS/WSS en EC2. Las URLs del cliente permanecen vacías hasta esa comprobación. No se deben presentar capturas del modo simulado como evidencias de AWS, RDS, WebSocket real o movimiento físico. El alcance comprobado está en [validacion-local.md](docs/validacion-local.md).
 
 ## Ejecutar localmente
 
