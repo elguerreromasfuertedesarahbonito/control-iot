@@ -1,0 +1,9 @@
+{
+  "name": "terra-control-iot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Control responsivo de la excavadora mediante la API existente",
+  "scripts": { "start": "node tools/serve.mjs", "test": "node --test tests/*.test.js" },
+  "engines": { "node": ">=22" }
+}

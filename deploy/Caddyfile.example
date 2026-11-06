@@ -1,0 +1,6 @@
+# Configurar IOT_HOSTNAME con el subdominio DuckDNS realmente registrado.
+# Este ejemplo no configura DNS, firewall ni el servicio de Windows.
+{$IOT_HOSTNAME} {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8000
+}
