@@ -6,14 +6,14 @@
 
 | Campo | Contenido |
 | --- | --- |
-| Logotipo institucional | Pendiente de proporcionar |
-| Institución | Pendiente de proporcionar |
-| Carrera | Pendiente de proporcionar |
+| Logotipo institucional | ITP, obtenido de su portal institucional |
+| Institución | Instituto Tecnológico de Pachuca |
+| Carrera | Ingeniería en Sistemas Computacionales |
 | Asignatura | Implementación de soluciones IoT; confirmar denominación institucional |
 | Práctica | 4.1 · Aplicación de control para IoT |
-| Docente | Pendiente de proporcionar |
+| Docente | Víctor Pinedo Fernández |
 | Alumno | Ricardo de Jesus Serrano Cortes |
-| Fecha de entrega | Pendiente de confirmar |
+| Fecha de entrega | 10 de noviembre de 2026 |
 
 ## Objetivo
 

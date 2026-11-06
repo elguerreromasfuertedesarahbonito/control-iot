@@ -70,6 +70,8 @@ test('REST rejects invalid IDs and mixed content before calling Fetch', async t 
 test('REST distinguishes HTTP errors, malformed JSON, invalid contracts and network errors', async () => {
   const http = createApi(config, { fetchImpl: async () => response({ detail: 'Conflict' }, 409) });
   await assert.rejects(http.startDemo(7), error => error.kind === 'http' && error.status === 409);
+  const internal = createApi(config, { fetchImpl: async () => response({ detail: 'private dependency trace' }, 500) });
+  await assert.rejects(internal.health(), error => error.status === 500 && !error.message.includes('private dependency trace'));
   const json = createApi(config, { fetchImpl: async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError(); } }) });
   await assert.rejects(json.health(), error => error.kind === 'invalid-response');
   const invalid = createApi(config, { fetchImpl: async () => response({ status: 'unknown' }) });

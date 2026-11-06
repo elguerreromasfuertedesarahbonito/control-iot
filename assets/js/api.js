@@ -85,7 +85,8 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
         throw new ApiError("La API no devolvió JSON válido.", { kind: "invalid-response", status: response.status, cause });
       }
       if (!response.ok) {
-        const detail = serverDetail(data);
+        // Un error interno puede incluir rutas o informacion de dependencias.
+        const detail = response.status < 500 ? serverDetail(data) : "";
         throw new ApiError(`La API rechazó la petición (HTTP ${response.status}).${detail ? ` ${detail}` : ""}`, {
           kind: "http", status: response.status,
         });
