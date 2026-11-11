@@ -7,6 +7,8 @@ export const CONFIG = Object.freeze({
   healthPath: '/health',
   healthIntervalMs: 30000,
   requestTimeoutMs: 8000,
-  developerName: 'Ricardo de Jesus Serrano Cortes',
+  sourceTimeZone: 'UTC', // Confirmada mediante NOW(), UTC_TIMESTAMP() y variables de MySQL.
+  displayTimeZone: 'America/Mexico_City',
+  developerName: 'Ricardo de Jesús Serrano Cortés',
   year: 2026,
 });

@@ -1,3 +1,5 @@
+import { isStateResponse, isHistoryResponse } from './monitoring-validation.js';
+
 /** Contrato HTTP de la API existente. No reintenta órdenes POST. */
 export class ApiError extends Error {
   constructor(message, { kind = "network", status = null, cause } = {}) {
@@ -116,10 +118,17 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
   const demoId = (value) => requireId(value, "La demo");
 
   return Object.freeze({
-    async health() {
-      return request(config.healthPath ?? "/health", {
+    async health({ signal } = {}) {
+      return request(config.healthPath ?? "/health", { signal,
         validate: (value) => object(value) && value.status === "ok",
       });
+    },
+    async state({ signal } = {}) {
+      return request(`/estado/${vehicleId()}`, { signal, validate: isStateResponse });
+    },
+    async history({ signal } = {}) {
+      // El procedimiento real no acepta límite ni orden: se normaliza después de leer.
+      return request(`/historial/${vehicleId()}`, { signal, validate: isHistoryResponse });
     },
     async vehicle() {
       const id = vehicleId();

@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#142c2a">
-    <meta name="description" content="Consola de control IoT de una excavadora, con dos joysticks, parada prioritaria y demostraciones.">
+    <meta name="description" content="Control y monitoreo IoT de una excavadora, con dos joysticks, parada prioritaria y movimientos persistidos.">
     <title>Terra · Control IoT</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
     <link rel="stylesheet" href="./assets/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="./assets/css/styles.css">
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Ir a los controles</a>
+    <a class="skip-link" href="#main-content">Ir al contenido</a>
     <div class="app-shell">
       <header class="app-header">
         <a class="brand" href="./" aria-label="Terra, inicio del control IoT">
@@ -20,8 +20,12 @@
           </span>
           <span class="brand-wordmark">TERRA<span class="brand-divider">/</span><span class="brand-section">CONTROL IoT</span></span>
         </a>
+        <nav class="view-navigation" aria-label="Vistas de la aplicación">
+          <a id="nav-control" class="view-link" href="#control" data-view="control" aria-controls="control-view" aria-current="page">Control</a>
+          <a id="nav-monitor" class="view-link" href="#monitoreo" data-view="monitoreo" aria-controls="monitor-view">Monitoreo</a>
+        </nav>
         <div class="header-actions">
-          <button id="open-demo" class="icon-button compact-demo-button" type="button" aria-label="Abrir demostraciones" aria-haspopup="dialog" aria-controls="demo-dialog">DEMO</button>
+          <button id="open-demo" class="icon-button compact-demo-button" type="button" aria-label="Abrir demostraciones" aria-haspopup="dialog" aria-controls="demo-dialog"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" fill="currentColor"/></svg><span>DEMO</span></button>
           <button id="open-details" class="icon-button details-button" type="button" aria-label="Abrir información, ayuda y funciones adicionales" aria-haspopup="dialog" aria-controls="details-dialog">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6m0-10v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             <span>Info</span>
@@ -31,6 +35,7 @@
       </header>
 
       <main id="main-content">
+        <section id="control-view" class="app-view control-view" aria-label="Control del vehículo">
         <section class="vehicle-heading" aria-labelledby="vehicle-name">
           <div class="vehicle-identity">
             <p class="eyebrow">ESTACIÓN REMOTA <span class="vehicle-number">/ <span id="vehicle-id">01</span></span></p>
@@ -120,9 +125,44 @@
         </section>
 
         <div id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true">Esperando la conexión para habilitar los controles.</div>
+        </section>
+
+        <section id="monitor-view" class="app-view monitor-view" aria-labelledby="monitor-title" hidden>
+          <header class="monitor-topline">
+            <div class="monitor-heading"><p class="eyebrow"><span id="monitor-vehicle-name">Excavadora IoT</span> <span id="monitor-vehicle-id">/ 01</span></p><h1 id="monitor-title">Monitoreo</h1></div>
+            <section class="connection-grid monitor-connections" aria-label="Conectividad del monitoreo">
+              <article class="connection-card"><h2 class="connection-label" aria-label="WebSocket del navegador">WS</h2><span id="monitor-ws-status" class="connection-value" data-state="checking">Conectando</span></article>
+              <article class="connection-card"><h2 class="connection-label" aria-label="API AWS">API</h2><span id="monitor-api-status" class="connection-value" data-state="checking">Comprobando</span></article>
+              <article class="connection-card"><h2 class="connection-label" aria-label="Amazon RDS">RDS</h2><span id="monitor-rds-status" class="connection-value" data-state="unverified">Sin verificar</span></article>
+            </section>
+            <button id="monitor-refresh" class="icon-button monitor-refresh" type="button" aria-label="Actualizar el estado y los últimos movimientos persistidos"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 7.5a7 7 0 0 1 11.6-1L20 9M4 15l2.3 2.5a7 7 0 0 0 11.6-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Actualizar</span></button>
+          </header>
+
+          <article class="monitor-latest" aria-labelledby="monitor-latest-title">
+            <div class="monitor-card-heading"><p id="monitor-latest-title" class="eyebrow">ÚLTIMO MOVIMIENTO INFORMADO</p><span id="monitor-latest-status" class="monitor-state" data-state="idle">Sin datos</span></div>
+            <h2 class="monitor-command" aria-live="polite" aria-atomic="true"><span id="monitor-latest-command">Sin movimientos</span><small id="monitor-latest-code" hidden></small></h2>
+            <dl class="monitor-datetime"><div><dt>Fecha</dt><dd><time id="monitor-latest-date">—</time></dd></div><div><dt>Hora <span id="monitor-time-zone">Ciudad de México</span></dt><dd><time id="monitor-latest-time">—</time></dd></div></dl>
+            <p id="monitor-latest-source" class="monitor-source">Sin fuente disponible</p>
+            <p id="monitor-latest-activity" class="monitor-activity">Sin actividad informada</p>
+            <p id="monitor-latest-message" class="monitor-message" role="status" aria-live="polite">Esperando datos del servicio.</p>
+          </article>
+
+          <section class="monitor-history" aria-labelledby="monitor-history-title">
+            <div class="monitor-history-heading"><div><p class="eyebrow">CONSULTA REST</p><h2 id="monitor-history-title">Últimos 10 movimientos persistidos</h2></div><span id="monitor-history-count" class="monitor-count">0 / 10</span></div>
+            <p id="monitor-history-status" class="monitor-history-status" role="status" aria-live="polite">Sin registros.</p>
+            <div class="monitor-table-scroll" tabindex="0" role="region" aria-label="Tabla de los últimos diez movimientos persistidos" aria-describedby="monitor-history-status">
+              <table class="monitor-table">
+                <caption class="visually-hidden">Historial persistido del vehículo, del más reciente al más antiguo. Fechas y horas en Ciudad de México.</caption>
+                <thead><tr><th scope="col">#</th><th scope="col">Movimiento</th><th scope="col">Fecha</th><th scope="col">Hora</th></tr></thead>
+                <tbody id="monitor-history-body"></tbody>
+              </table>
+            </div>
+            <p class="monitor-history-note">Registros guardados por el servicio. Los pasos de DEMO no se agregan a este historial individual.</p>
+          </section>
+        </section>
       </main>
 
-      <footer class="app-footer"><p id="developer-credit">Desarrollado por Ricardo de Jesus Serrano Cortes · 2026</p><span class="footer-mark" aria-hidden="true">TERRA / CONTROL</span></footer>
+      <footer class="app-footer"><p id="developer-credit">Desarrollado por Ricardo de Jesús Serrano Cortés · 2026</p><span class="footer-mark" aria-hidden="true">TERRA / CONTROL</span></footer>
     </div>
 
     <dialog id="demo-dialog" class="details-dialog demo-dialog" aria-labelledby="compact-demo-title">

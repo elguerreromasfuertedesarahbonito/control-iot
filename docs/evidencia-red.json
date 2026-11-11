@@ -1,0 +1,150 @@
+{
+  "checked_at_utc": "2026-11-11T23:45:31.4359333Z",
+  "api": "https://excavadora-iot-rsc.duckdns.org",
+  "vehicle_id": 1,
+  "timezone_source": "UTC confirmado por SQL del usuario",
+  "display_timezone": "America/Mexico_City",
+  "results": [
+    {
+      "response": {
+        "history_parameters": [
+          {
+            "name": "id_vehiculo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id Vehiculo"
+            }
+          }
+        ],
+        "version": "1.0.0",
+        "security_schemes_present": false
+      },
+      "cors": [
+        "https://elguerreromasfuertedesarahbonito.github.io"
+      ],
+      "route": "/openapi.json",
+      "status": 200
+    },
+    {
+      "response": {
+        "status": "ok",
+        "db": "vehiculo_iot"
+      },
+      "cors": [
+        "https://elguerreromasfuertedesarahbonito.github.io"
+      ],
+      "route": "/health",
+      "status": 200
+    },
+    {
+      "response": {
+        "id_vehiculo": 1,
+        "vehiculo": "Excavadora IoT",
+        "id_comando": 9,
+        "comando": "DETENER",
+        "codigo": 9,
+        "conectado": true,
+        "fecha_actualizacion": "2026-11-11T23:43:38"
+      },
+      "cors": [
+        "https://elguerreromasfuertedesarahbonito.github.io"
+      ],
+      "route": "/estado/1",
+      "status": 200
+    },
+    {
+      "response": {
+        "count": 563,
+        "newest_ten": [
+          {
+            "id_historial": 563,
+            "id_vehiculo": 1,
+            "comando": "DETENER",
+            "codigo": 9,
+            "fecha_hora": "2026-11-11T23:43:38",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 562,
+            "id_vehiculo": 1,
+            "comando": "ABRIR_PALA",
+            "codigo": 7,
+            "fecha_hora": "2026-11-11T23:43:38",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 561,
+            "id_vehiculo": 1,
+            "comando": "DETENER",
+            "codigo": 9,
+            "fecha_hora": "2026-11-11T23:41:01",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 560,
+            "id_vehiculo": 1,
+            "comando": "DETENER",
+            "codigo": 9,
+            "fecha_hora": "2026-11-11T23:40:56",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 559,
+            "id_vehiculo": 1,
+            "comando": "DETENER",
+            "codigo": 9,
+            "fecha_hora": "2026-11-11T23:40:56",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 558,
+            "id_vehiculo": 1,
+            "comando": "BAJAR_BRAZO",
+            "codigo": 6,
+            "fecha_hora": "2026-11-11T23:40:56",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 557,
+            "id_vehiculo": 1,
+            "comando": "CERRAR_PALA",
+            "codigo": 8,
+            "fecha_hora": "2026-11-11T23:40:56",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 556,
+            "id_vehiculo": 1,
+            "comando": "ABRIR_PALA",
+            "codigo": 7,
+            "fecha_hora": "2026-11-11T23:40:56",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 555,
+            "id_vehiculo": 1,
+            "comando": "SUBIR_BRAZO",
+            "codigo": 5,
+            "fecha_hora": "2026-11-11T23:40:56",
+            "origen": "MANUAL"
+          },
+          {
+            "id_historial": 554,
+            "id_vehiculo": 1,
+            "comando": "CERRAR_PALA",
+            "codigo": 8,
+            "fecha_hora": "2026-11-11T23:40:56",
+            "origen": "MANUAL"
+          }
+        ]
+      },
+      "cors": [
+        "https://elguerreromasfuertedesarahbonito.github.io"
+      ],
+      "route": "/historial/1",
+      "status": 200
+    }
+  ]
+}
