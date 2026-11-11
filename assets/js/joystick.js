@@ -20,14 +20,15 @@ export class VirtualJoystick {
     element.addEventListener('keyup', event => {
       if (event.key === this.key) { event.preventDefault(); this.release(); }
     });
-    element.addEventListener('blur', () => this.release());
+    // Enfocar el otro joystick no cancela un dedo que aún tiene captura.
+    element.addEventListener('blur', () => { if (this.key !== null) this.release(); });
   }
   down(event) {
-    if (!this.enabled() || this.pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (!this.enabled() || this.pointer !== null || this.key !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault(); this.pointer = event.pointerId; this.stopSent = false;
     this.element.setPointerCapture(event.pointerId);
-    this.element.focus({ preventScroll: true });
     this.drag(event);
+    this.element.focus({ preventScroll: true });
   }
   drag(event) {
     if (event.pointerId !== this.pointer) return;
@@ -49,7 +50,7 @@ export class VirtualJoystick {
   }
   keydown(event) {
     const map = { ArrowUp: 'forward', ArrowDown: 'backward', ArrowLeft: 'left', ArrowRight: 'right' };
-    if (!map[event.key] || !this.enabled()) return;
+    if (!map[event.key] || !this.enabled() || this.pointer !== null) return;
     event.preventDefault();
     if (event.repeat || this.key === event.key) return;
     this.key = event.key;

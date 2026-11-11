@@ -2,7 +2,7 @@
 
 ## Alcance actual
 
-El usuario autorizó por ahora **solo pruebas simuladas**. Este documento describe pruebas locales y, por separado, las comprobaciones reales que podrán realizarse cuando autorice esa etapa. No constituye evidencia de que AWS, WSS, RDS, GitHub Pages o un teléfono físico hayan sido probados.
+El usuario autorizó por ahora **solo pruebas simuladas** del frontend. El 6 de noviembre de 2026 confirmó que HTTPS y WSS funcionan en `excavadora-iot-rsc.duckdns.org`; las URLs públicas ya están configuradas en el cliente. Esa confirmación no sustituye las pruebas A–E desde el frontend publicado. Este documento describe las pruebas locales y las comprobaciones reales todavía pendientes; no acredita disponibilidad de RDS, publicación de GitHub Pages ni uso de un teléfono físico.
 
 Ejecutar desde la carpeta `control-iot`:
 
@@ -39,7 +39,7 @@ Abrir `http://localhost:4173/?simulation=1`. La interfaz debe identificar la sim
 4. Autorizar expresamente la ejecución de solicitudes contra la API real. Sus POST pueden modificar estado e historial aunque el vehículo esté desconectado.
 5. Abrir en Postman, Thunder Client o una extensión WebSocket una **segunda sesión WSS independiente** a la misma DEMO. No enviar `accion:estado`, porque escribe estado en BD.
 
-El navegador de la aplicación mantiene su propia sesión; el cliente externo no la sustituye. Usar `wss://HOST-REAL/ws/demos/ID-DEMO`, con datos reales ya configurados, y comprobar la trama `bienvenida`.
+El navegador de la aplicación mantiene su propia sesión; el cliente externo no la sustituye. Para la DEMO 1 configurada, usar `wss://excavadora-iot-rsc.duckdns.org/ws/demos/1` y comprobar la trama `bienvenida`. Si se selecciona otra DEMO, ambos clientes deben usar su identificador real.
 
 ## Pruebas obligatorias A–E, todavía pendientes
 

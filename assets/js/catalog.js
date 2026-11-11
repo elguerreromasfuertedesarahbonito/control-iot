@@ -6,6 +6,12 @@ const DIRECTION_NAMES = new Map([
   ["GIRAR_DERECHA", "right"],
   ["DETENER", "stop"],
 ]);
+const TOOL_NAMES = new Map([
+  ["SUBIR_BRAZO", "forward"],
+  ["BAJAR_BRAZO", "backward"],
+  ["ABRIR_PALA", "left"],
+  ["CERRAR_PALA", "right"],
+]);
 
 function normalizeName(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -14,10 +20,11 @@ function normalizeName(value) {
 
 export function buildCatalog(commands, vehicleId) {
   const directions = { forward: null, backward: null, left: null, right: null, stop: null };
+  const tools = { forward: null, backward: null, left: null, right: null };
   const byId = new Map();
   const duplicateIds = new Set();
   if (!Array.isArray(commands) || !Number.isSafeInteger(vehicleId) || vehicleId <= 0) {
-    return { directions, auxiliary: [], byId };
+    return { directions, tools, auxiliary: [], byId };
   }
   for (const command of commands) {
     if (!command || typeof command !== "object" || Array.isArray(command) ||
@@ -33,16 +40,21 @@ export function buildCatalog(commands, vehicleId) {
   const auxiliary = [];
   const ambiguous = new Set();
   for (const command of byId.values()) {
-    const direction = DIRECTION_NAMES.get(normalizeName(command.nombre));
+    const name = normalizeName(command.nombre);
+    const driveDirection = DIRECTION_NAMES.get(name);
+    const toolDirection = TOOL_NAMES.get(name);
+    const direction = driveDirection ?? toolDirection;
+    const group = driveDirection ? directions : tools;
+    const key = `${driveDirection ? 'drive' : 'tool'}:${direction}`;
     if (!direction) {
       auxiliary.push(command);
-    } else if (directions[direction] || ambiguous.has(direction)) {
-      directions[direction] = null;
-      ambiguous.add(direction);
+    } else if (group[direction] || ambiguous.has(key)) {
+      group[direction] = null;
+      ambiguous.add(key);
     } else {
-      directions[direction] = command;
+      group[direction] = command;
     }
   }
   auxiliary.sort((a, b) => a.id_comando - b.id_comando);
-  return { directions, auxiliary, byId };
+  return { directions, tools, auxiliary, byId };
 }

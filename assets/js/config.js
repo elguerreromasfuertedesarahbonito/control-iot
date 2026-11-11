@@ -1,7 +1,7 @@
 // Configuracion publica: nunca agregar tokens de DuckDNS, AWS ni credenciales.
 export const CONFIG = Object.freeze({
-  apiBaseUrl: '', // Activar tras verificar https://excavadora-iot-rsc.duckdns.org
-  wsUrlTemplate: '', // Activar tras verificar wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}
+  apiBaseUrl: 'https://excavadora-iot-rsc.duckdns.org',
+  wsUrlTemplate: 'wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}',
   vehicleId: 1,
   defaultDemoId: 1,
   healthPath: '/health',

@@ -23,12 +23,22 @@ La parada puede requerir un segundo POST de compensación si ya había una mutac
 
 Las capturas privadas de revisión están en `artifacts/control-desktop-simulado.jpg` y `artifacts/control-mobile-simulado.jpg`. Se excluyen de Git y no acreditan conectividad con AWS, WSS real, RDS ni movimiento físico.
 
+## Integración configurada y confirmación del usuario
+
+El usuario confirmó que HTTPS y WSS funcionan mediante Caddy en EC2 Windows para `excavadora-iot-rsc.duckdns.org`. El asistente no verificó de forma independiente esa disponibilidad. Las URLs del cliente ya están activadas:
+
+- API: `https://excavadora-iot-rsc.duckdns.org`.
+- WebSocket: `wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}`.
+
+Esta actualización de configuración no amplía el alcance de las 29 pruebas: siguen usando servicios simulados. No se enviaron órdenes POST a AWS, no se probó movimiento físico y no se publicó ni verificó GitHub Pages desde esta etapa.
+
 ## Pendiente para entregar la actividad completa
 
-1. Registrar/proporcionar el hostname DuckDNS y preparar HTTPS/WSS en EC2 con el proxy documentado.
-2. Configurar las dos URLs públicas y CORS para el origen de Pages; probarlo cuando el usuario autorice pruebas reales.
-3. Crear/publicar el repositorio frontend y verificar la URL pública de GitHub Pages.
-4. Ejecutar las pruebas A–E desde la página publicada y un cliente WSS independiente. Comprobar un teléfono físico.
-5. Completar institución, carrera, docente, logotipo, fecha y evidencias reales para elaborar el Word/PDF institucional.
+1. Comprobar CORS para el origen `https://elguerreromasfuertedesarahbonito.github.io`, sin subruta; si se modifica `ALLOWED_ORIGINS` en EC2, reiniciar el proceso de la API según la [guía de despliegue](despliegue-ec2-windows.md).
+2. Crear/publicar el repositorio frontend y verificar la URL pública de GitHub Pages.
+3. Ejecutar las pruebas A–E desde la página publicada y un cliente WSS independiente en una sesión de prueba acordada. Comprobar un teléfono físico.
+4. Incorporar las evidencias reales y finalizar el Word/PDF institucional. El informe sigue siendo un borrador.
+
+Ya se proporcionaron institución (Instituto Tecnológico de Pachuca, ITP), carrera (Ingeniería en Sistemas Computacionales), docente (Víctor Pinedo Fernández), logotipo y fecha de entrega (10/11/2026); esos datos no son pendientes.
 
 No se modificaron el backend, RDS, el firmware ni la configuración de EC2 en esta etapa. La disponibilidad de RDS permanece **Sin verificar**: `/health` no realiza un diagnóstico de conexión a la base de datos.

@@ -98,7 +98,7 @@ test('REST timeout aborts transport and reports timeout rather than successful c
 
 test('catalog takes actual IDs/codes and excludes inactive, foreign and duplicate commands', () => {
   const commands = [command(42, 'Avanzar'), command(71, 'RETROCEDER'), command(82, 'Girar izquierda'),
-    command(91, 'GIRAR_DERECHA'), command(95, 'DETENER'), command(120, 'SUBIR_BRAZO'),
+    command(91, 'GIRAR_DERECHA'), command(95, 'DETENER'), command(120, 'SUBIR_BRAZO'), command(121, 'LUZ'),
     command(1, 'INACTIVO', { activo: false }), command(2, 'OTRO', { id_vehiculo: 2 }),
     command(3, 'REPETIDO'), command(3, 'REPETIDO DOS')];
   const catalog = buildCatalog(commands, 1);
@@ -106,12 +106,27 @@ test('catalog takes actual IDs/codes and excludes inactive, foreign and duplicat
   assert.equal(catalog.directions.forward.codigo, 142);
   assert.equal(catalog.directions.left.id_comando, 82);
   assert.equal(catalog.directions.stop.id_comando, 95);
-  assert.deepEqual(catalog.auxiliary.map(value => value.id_comando), [120]);
+  assert.equal(catalog.tools.forward.id_comando, 120);
+  assert.deepEqual(catalog.auxiliary.map(value => value.id_comando), [121]);
   assert.equal(catalog.byId.has(1), false);
   assert.equal(catalog.byId.has(2), false);
   assert.equal(catalog.byId.has(3), false);
   const ambiguous = buildCatalog([...commands, command(43, 'AVANZAR')], 1);
   assert.equal(ambiguous.directions.forward, null);
+});
+
+test('tool joystick resolves the four real functions and keeps extra commands available', () => {
+  const commands = [command(25, 'Subir brazo'), command(38, 'BAJAR_BRAZO'),
+    command(44, 'Abrir pala'), command(59, 'cerrar-pala'), command(63, 'SONIDO')];
+  const catalog = buildCatalog(commands, 1);
+  assert.deepEqual(Object.values(catalog.tools).map(value => value.id_comando), [25, 38, 44, 59]);
+  assert.deepEqual(catalog.auxiliary.map(value => value.id_comando), [63]);
+  assert.equal(catalog.tools.left.nombre, 'Abrir pala');
+  assert.equal(catalog.tools.right.nombre, 'cerrar-pala');
+  const ambiguous = buildCatalog([...commands, command(78, 'ABRIR_PALA')], 1);
+  assert.equal(ambiguous.tools.left, null);
+  assert.deepEqual(ambiguous.auxiliary.map(value => value.id_comando), [63]);
+  assert.equal(buildCatalog([], 1).tools.forward, null);
 });
 
 class FakeSocket {

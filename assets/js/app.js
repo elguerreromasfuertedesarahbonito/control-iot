@@ -4,6 +4,7 @@ import { buildCatalog } from './catalog.js';
 import { DemoSocket } from './socket.js';
 import { ControlCoordinator } from './coordinator.js';
 import { VirtualJoystick } from './joystick.js';
+import { ManualInput } from './manual-input.js';
 
 const $ = id => document.getElementById(id);
 const simulation = new URLSearchParams(location.search).get('simulation') === '1';
@@ -20,32 +21,58 @@ let loading = false;
 let healthTimer;
 let healthGeneration = 0;
 let readyForDemo = false;
-const resetHolds = [];
+let socketError = '';
+let apiError = '';
+let definitionError = '';
+const auxiliarySources = [];
 
 $('developer-credit').textContent = `Desarrollado por ${CONFIG.developerName} · ${CONFIG.year}`;
 $('vehicle-id').textContent = String(CONFIG.vehicleId).padStart(2, '0');
-const feedback = text => { $('feedback').textContent = text; };
+const feedback = text => {
+  $('feedback').textContent = text;
+  $('feedback').title = text;
+  if ($('feedback-detail')) $('feedback-detail').textContent = text;
+};
 const status = (id, state, text) => {
   $(id).dataset.state = state;
   $(id).textContent = simulation && id !== 'rds-status' ? `Simulado · ${text}` : text;
 };
 status('rds-status', 'unverified', 'Sin verificar');
 const coordinator = new ControlCoordinator(api, { onChange: render });
-const joystick = new VirtualJoystick($('joystick'), $('joystick-stick'), {
-  enabled: () => canMove(),
-  onDirection: direction => requestDirection(direction),
-  onRelease: () => { $('joystick-label').textContent = 'Neutral'; void coordinator.stop(); },
+const manualInput = new ManualInput({
+  move: command => coordinator.move(command),
+  stop: () => { void coordinator.stop(); },
 });
+const joystick = createJoystick('drive', 'directions', 'joystick', 'joystick-stick', 'joystick-label');
+const toolJoystick = createJoystick('tool', 'tools', 'tool-joystick', 'tool-joystick-stick', 'tool-joystick-label');
+
+function createJoystick(source, group, elementId, stickId, labelId) {
+  const control = new VirtualJoystick($(elementId), $(stickId), {
+    enabled: () => canMove() && Object.values(catalog?.[group] ?? {}).some(Boolean),
+    onDirection: direction => {
+      const command = catalog?.[group]?.[direction];
+      if (!command || !manualInput.request(source, command)) return false;
+      $(labelId).textContent = command.nombre.replaceAll('_', ' ');
+      return true;
+    },
+    onRelease: () => {
+      if (manualInput.release(source)) $(labelId).textContent = 'Neutral';
+    },
+  });
+  manualInput.register(source, () => { control.release(false); $(labelId).textContent = 'Neutral'; });
+  return control;
+}
 const socket = new Socket(CONFIG, {
   onStatus(state, detail = {}) {
     const wasReady = socketReady;
     socketReady = false;
     const labels = { connecting: 'Conectando', online: 'En línea', reconnecting: 'Reconectando', offline: 'Desconectado' };
     status('ws-status', state, labels[state] ?? 'Desconectado');
-    if (detail.error) feedback(detail.error.message);
+    if (detail.error) socketError = detail.error.message;
+    if (state === 'online') socketError = '';
     updateReady();
     if (wasReady && state !== 'online' && ['manual', 'demo', 'demo-starting'].includes(coordinator.mode)) {
-      joystick.release(false); void coordinator.stop();
+      neutral(); void coordinator.stop();
     }
   },
   onReady() { socketReady = true; updateReady(); },
@@ -60,11 +87,14 @@ function updateReady() {
 }
 function render(snapshot = coordinator.snapshot()) {
   const movementAllowed = canMove();
-  $('joystick').setAttribute('aria-disabled', String(!movementAllowed));
-  for (const button of document.querySelectorAll('[data-direction]')) {
-    if (button === $('joystick')) continue;
+  $('joystick').setAttribute('aria-disabled', String(!movementAllowed || !Object.values(catalog?.directions ?? {}).some(Boolean)));
+  $('tool-joystick').setAttribute('aria-disabled', String(!movementAllowed || !Object.values(catalog?.tools ?? {}).some(Boolean)));
+  for (const button of $('direction-controls').querySelectorAll('button')) {
     const command = catalog?.directions[button.dataset.direction];
     button.disabled = !movementAllowed || !command;
+  }
+  for (const button of $('tool-controls').querySelectorAll('button')) {
+    button.disabled = !movementAllowed || !catalog?.tools[button.dataset.toolDirection];
   }
   for (const button of $('auxiliary-controls').querySelectorAll('button')) button.disabled = !movementAllowed;
   const demoBusy = ['demo', 'demo-starting', 'stopping', 'uncertain'].includes(snapshot.mode);
@@ -80,42 +110,38 @@ function render(snapshot = coordinator.snapshot()) {
     $(id).textContent = snapshot.action[key] ? (simulation ? 'Simulado' : labels[key]) : 'Pendiente';
     $(id).setAttribute('aria-label', `${labels[key]}: ${snapshot.action[key] ? (simulation ? 'simulado' : 'confirmado') : 'pendiente'}`);
   }
-  feedback(simulation ? `SIMULACIÓN · ${snapshot.message}` : snapshot.message);
+  const message = socketError || apiError || definitionError || snapshot.message;
+  feedback(simulation ? `SIMULACIÓN · ${message}` : message);
 }
 
-function requestDirection(direction) {
-  const command = catalog?.directions[direction];
-  if (!command || !coordinator.move(command)) return;
-  $('joystick-label').textContent = command.nombre.replaceAll('_', ' ');
-}
 function neutral() {
-  joystick.release(false);
-  resetHolds.forEach(reset => reset());
-  $('joystick-label').textContent = 'Neutral';
+  manualInput.clear();
   for (const button of document.querySelectorAll('.is-active')) {
     button.classList.remove('is-active'); button.setAttribute('aria-pressed', 'false');
   }
 }
-function bindHold(button, getCommand) {
+function bindHold(button, getCommand, labelId = 'joystick-label') {
   let activePointer = null;
   let activeKey = null;
   const reset = () => {
+    const pointer = activePointer;
     activePointer = null; activeKey = null;
     button.classList.remove('is-active'); button.setAttribute('aria-pressed', 'false');
+    if (pointer !== null && button.hasPointerCapture(pointer)) button.releasePointerCapture(pointer);
   };
-  resetHolds.push(reset);
+  manualInput.register(button, reset);
   const press = () => {
     if (button.disabled || activePointer !== null || activeKey !== null) return false;
     const command = getCommand();
-    if (!command || !coordinator.move(command)) return false;
+    if (!command || !manualInput.request(button, command)) return false;
     button.classList.add('is-active'); button.setAttribute('aria-pressed', 'true');
-    $('joystick-label').textContent = command.nombre.replaceAll('_', ' ');
+    $(labelId).textContent = command.nombre.replaceAll('_', ' ');
     return true;
   };
   const release = () => {
     if (activePointer === null && activeKey === null) return;
     reset();
-    $('joystick-label').textContent = 'Neutral'; void coordinator.stop();
+    if (manualInput.release(button)) $(labelId).textContent = 'Neutral';
   };
   button.addEventListener('pointerdown', event => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -129,7 +155,7 @@ function bindHold(button, getCommand) {
     event.preventDefault(); if (!event.repeat && press()) activeKey = event.key;
   });
   button.addEventListener('keyup', event => { if (event.key === activeKey) { event.preventDefault(); release(); } });
-  button.addEventListener('blur', release);
+  button.addEventListener('blur', () => { if (activeKey !== null) release(); });
   // Activacion sintetica de lectores de pantalla: pulsacion breve y liberacion.
   button.addEventListener('click', event => {
     if (event.detail === 0 && press()) { activeKey = 'assistive'; setTimeout(release, 200); }
@@ -138,22 +164,60 @@ function bindHold(button, getCommand) {
 for (const button of $('direction-controls').querySelectorAll('button')) {
   bindHold(button, () => catalog?.directions[button.dataset.direction]);
 }
+for (const button of $('tool-controls').querySelectorAll('button')) {
+  bindHold(button, () => catalog?.tools[button.dataset.toolDirection], 'tool-joystick-label');
+}
 $('stop-button').addEventListener('click', () => { neutral(); void coordinator.stop(); });
 $('global-stop').addEventListener('click', () => { neutral(); void coordinator.stop(); });
+$('details-stop').addEventListener('click', () => { neutral(); void coordinator.stop(); });
+$('demo-dialog-stop').addEventListener('click', () => { neutral(); void coordinator.stop(); });
 $('cancel-demo').addEventListener('click', () => { neutral(); void coordinator.stop(); });
 $('start-demo').addEventListener('click', () => { neutral(); void coordinator.startDemo(selectedDemo); });
-window.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); neutral(); void coordinator.stop(); } });
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    event.preventDefault(); neutral(); void coordinator.stop();
+    if ($('details-dialog').open) $('details-dialog').close();
+    if ($('demo-dialog').open) $('demo-dialog').close();
+  }
+});
 function leaveControl() {
   neutral();
   if (['manual', 'demo', 'demo-starting'].includes(coordinator.mode)) void coordinator.stop();
 }
 window.addEventListener('blur', leaveControl);
 document.addEventListener('visibilitychange', () => { if (document.hidden) leaveControl(); });
+function releaseManualControl() {
+  neutral();
+  if (coordinator.mode === 'manual') void coordinator.stop();
+}
+$('open-details').addEventListener('click', () => { releaseManualControl(); $('details-dialog').showModal(); });
+$('close-details').addEventListener('click', () => { releaseManualControl(); $('details-dialog').close(); });
+$('details-dialog').addEventListener('close', releaseManualControl);
+$('open-demo').addEventListener('click', () => { releaseManualControl(); $('demo-dialog').showModal(); });
+$('close-demo').addEventListener('click', () => { releaseManualControl(); $('demo-dialog').close(); });
+$('demo-dialog').addEventListener('close', releaseManualControl);
+
+// El mismo selector y sus botones cambian de lugar; conservan estado y listeners.
+const demoPanel = document.querySelector('.demo-panel');
+const demoAnchor = document.createComment('Posición de DEMO en la consola');
+demoPanel.before(demoAnchor);
+const compactViewport = window.matchMedia('(max-height: 560px) and (orientation: portrait)');
+function placeDemoPanel() {
+  releaseManualControl();
+  if (compactViewport.matches) $('compact-demo-content').append(demoPanel);
+  else {
+    if ($('demo-dialog').open) $('demo-dialog').close();
+    demoAnchor.after(demoPanel);
+  }
+}
+compactViewport.addEventListener('change', placeDemoPanel);
+placeDemoPanel();
 
 async function selectDemo() {
   const generation = ++definitionGeneration;
   selectedDemo = Number($('demo-select').value) || null;
   readyForDemo = false; socketReady = false; updateReady();
+  definitionError = '';
   const demo = demos.find(item => item.id_demo === selectedDemo);
   $('demo-description').textContent = demo?.descripcion || 'Sin descripción adicional.';
   $('demo-summary').textContent = 'Consultando definición…';
@@ -166,7 +230,7 @@ async function selectDemo() {
     const total = ordered.reduce((sum, item) => sum + item.duracion_ms + (item.pausa_ms ?? 0), 0);
     readyForDemo = ordered.length > 0;
     $('demo-summary').textContent = `${ordered.length} movimientos · ${(total / 1000).toLocaleString('es-MX')} s de secuencia`;
-  } catch (error) { if (generation === definitionGeneration) { $('demo-summary').textContent = 'Definición no disponible'; feedback(error.message); } }
+  } catch (error) { if (generation === definitionGeneration) { $('demo-summary').textContent = 'Definición no disponible'; definitionError = error.message; } }
   render();
 }
 $('demo-select').addEventListener('change', () => { void selectDemo(); });
@@ -179,12 +243,13 @@ async function checkHealth() {
     await api.health();
     if (generation !== healthGeneration) return;
     apiAvailable = true; status('api-status', 'online', 'Disponible');
+    apiError = '';
   }
   catch (error) {
     if (generation !== healthGeneration) return;
     apiAvailable = false;
     status('api-status', error.kind === 'config' ? 'unverified' : 'offline', error.kind === 'config' ? 'Sin configurar' : 'No disponible');
-    feedback(error.message);
+    apiError = error.message;
   }
   updateReady();
   healthTimer = setTimeout(checkHealth, CONFIG.healthIntervalMs);
@@ -193,6 +258,8 @@ async function checkHealth() {
 async function connect() {
   if (loading) return;
   if (['manual', 'demo', 'demo-starting', 'stopping'].includes(coordinator.mode)) { await coordinator.stop(); }
+  neutral();
+  socketError = ''; apiError = ''; definitionError = '';
   loading = true; socketReady = false; coordinator.setReady(false); render();
   if (!simulation && (!CONFIG.apiBaseUrl || !CONFIG.wsUrlTemplate)) {
     loading = false;
@@ -213,12 +280,14 @@ async function connect() {
     catalog = buildCatalog(commands, CONFIG.vehicleId); coordinator.configure(catalog);
     $('vehicle-name').textContent = vehicle.nombre;
     $('vehicle-model').textContent = vehicle.modelo || 'Control remoto mediante API';
+    for (const source of auxiliarySources.splice(0)) manualInput.unregister(source);
     $('auxiliary-controls').replaceChildren();
     for (const command of catalog.auxiliary) {
       const button = document.createElement('button'); button.type = 'button';
       button.textContent = command.nombre.replaceAll('_', ' '); button.setAttribute('aria-pressed', 'false');
       button.dataset.commandId = String(command.id_comando); $('auxiliary-controls').append(button);
-      bindHold(button, () => command);
+      bindHold(button, () => command, 'tool-joystick-label');
+      auxiliarySources.push(button);
     }
     demos = availableDemos.filter(item => item.activo !== false && item.activo !== 0
       && (item.id_vehiculo === undefined || item.id_vehiculo === CONFIG.vehicleId));
@@ -234,7 +303,10 @@ async function connect() {
     if (Object.values(catalog.directions).some(command => command === null)) {
       coordinator.message = 'Faltan direcciones válidas en el catálogo. Sus controles están deshabilitados.';
     }
-  } catch (error) { coordinator.message = error.message; }
+  } catch (error) {
+    coordinator.message = error.message;
+    socket.disconnect();
+  }
   finally { loading = false; updateReady(); render(); }
 }
 $('reconnect-button').addEventListener('click', () => { void connect(); });

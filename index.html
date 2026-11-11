@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#142c2a">
-    <meta name="description" content="Aplicación de control IoT para solicitar movimientos y ejecutar demostraciones de una excavadora mediante su API.">
+    <meta name="description" content="Consola de control IoT de una excavadora, con dos joysticks, parada prioritaria y demostraciones.">
     <title>Terra · Control IoT</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
     <link rel="stylesheet" href="./assets/vendor/bootstrap.min.css">
@@ -18,118 +18,129 @@
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 40 40" fill="none"><path d="M9 27h18a4 4 0 0 1 0 8H9a4 4 0 0 1 0-8Z" stroke="currentColor" stroke-width="2.5"/><path d="M12 27v-8h10v8M15 19v-7h7v7M22 18l7-8 6 13-5 2-4-8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 31h1m5 0h1m5 0h1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
           </span>
-          <span class="brand-wordmark">TERRA<span class="brand-divider">/</span><span class="brand-section">CONTROL</span></span>
+          <span class="brand-wordmark">TERRA<span class="brand-divider">/</span><span class="brand-section">CONTROL IoT</span></span>
         </a>
-        <button id="global-stop" class="button-secondary global-stop" type="button" aria-label="Detener desde cualquier sección">DETENER</button>
+        <div class="header-actions">
+          <button id="open-demo" class="icon-button compact-demo-button" type="button" aria-label="Abrir demostraciones" aria-haspopup="dialog" aria-controls="demo-dialog">DEMO</button>
+          <button id="open-details" class="icon-button details-button" type="button" aria-label="Abrir información, ayuda y funciones adicionales" aria-haspopup="dialog" aria-controls="details-dialog">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6m0-10v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <span>Info</span>
+          </button>
+          <button id="global-stop" class="global-stop" type="button" aria-label="Detener el vehículo"><span class="stop-symbol" aria-hidden="true"></span><span>STOP</span></button>
+        </div>
       </header>
 
       <main id="main-content">
         <section class="vehicle-heading" aria-labelledby="vehicle-name">
-          <div>
-            <p class="eyebrow">TU ESTACIÓN DE CONTROL</p>
+          <div class="vehicle-identity">
+            <p class="eyebrow">ESTACIÓN REMOTA <span class="vehicle-number">/ <span id="vehicle-id">01</span></span></p>
             <h1 id="vehicle-name">Excavadora IoT</h1>
-            <p class="vehicle-meta"><span id="vehicle-model">Cargando vehículo</span><span class="meta-divider" aria-hidden="true">/</span>Vehículo <span id="vehicle-id">01</span></p>
+            <p id="vehicle-model" class="vehicle-meta">Cargando vehículo</p>
           </div>
-          <button id="reconnect-button" class="button-secondary reconnect-button" type="button" aria-label="Volver a comprobar la conexión y reconectar WebSocket">
+          <button id="reconnect-button" class="icon-button reconnect-button" type="button" aria-label="Volver a comprobar la conexión y reconectar WebSocket">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 7.5a7 7 0 0 1 11.6-1L20 9M4 15l2.3 2.5a7 7 0 0 0 11.6-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             <span>Reconectar</span>
           </button>
         </section>
 
         <section class="connection-grid" aria-label="Conectividad de la aplicación">
-          <article class="connection-card">
-            <span class="connection-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <div><h2 class="connection-label">WebSocket del navegador</h2><span id="ws-status" class="connection-value" data-state="checking">Conectando</span></div>
-          </article>
-          <article class="connection-card">
-            <span class="connection-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3.5" width="16" height="7" rx="2" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13.5" width="16" height="7" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 7h.1M8 17h.1m4-10h4m-4 10h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
-            <div><h2 class="connection-label">API AWS · 21 servicios</h2><span id="api-status" class="connection-value" data-state="checking">Comprobando</span></div>
-          </article>
-          <article class="connection-card">
-            <span class="connection-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="6" rx="8" ry="3" stroke="currentColor" stroke-width="1.7"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" stroke="currentColor" stroke-width="1.7"/></svg></span>
-            <div><h2 class="connection-label">Amazon RDS</h2><span id="rds-status" class="connection-value" data-state="unverified">Sin verificar</span></div>
-          </article>
+          <article class="connection-card"><h2 class="connection-label" aria-label="WebSocket del navegador">WS</h2><span id="ws-status" class="connection-value" data-state="checking">Conectando</span></article>
+          <article class="connection-card"><h2 class="connection-label" aria-label="API AWS">API</h2><span id="api-status" class="connection-value" data-state="checking">Comprobando</span></article>
+          <article class="connection-card"><h2 class="connection-label" aria-label="Amazon RDS">RDS</h2><span id="rds-status" class="connection-value" data-state="unverified">Sin verificar</span></article>
         </section>
 
-        <div class="connection-notice" role="note">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v6m0-10v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-          <p id="connection-notice">Comprobando los servicios. La conexión del navegador no confirma la presencia del vehículo físico.</p>
-        </div>
-
-        <div class="row g-3 g-xl-4 control-layout">
-          <div class="col-12 col-lg-7">
-            <section class="panel drive-panel" aria-labelledby="drive-title">
-              <div class="panel-heading">
-                <div><p class="eyebrow">01 / DESPLAZAMIENTO</p><h2 id="drive-title">Toma el control</h2></div>
-                <span id="joystick-label" class="direction-label" aria-live="polite">Neutral</span>
-              </div>
-
+        <section class="control-console" aria-label="Control manual con dos joysticks">
+          <div class="console-topline"><p>CONTROL MANUAL</p><span>Arrastra · suelta para detener</span></div>
+          <div class="dual-controls">
+            <section class="control-pod drive-panel" aria-labelledby="drive-title">
+              <div class="pod-heading"><h2 id="drive-title"><span>01</span> Desplazamiento</h2><span id="joystick-label" class="direction-label" aria-live="polite">Neutral</span></div>
               <div class="joystick-surround">
-                <div id="joystick" class="joystick" role="group" tabindex="0" aria-label="Joystick de movimiento. Usa las flechas del teclado o arrastra hacia una dirección; suelta para detener." aria-describedby="joystick-help" aria-disabled="true">
+                <div id="joystick" class="joystick" role="group" tabindex="0" aria-label="Joystick de desplazamiento. Arriba: avanzar. Abajo: retroceder. Izquierda y derecha: girar." aria-describedby="joystick-help" aria-disabled="true">
                   <span class="joystick-guide joystick-guide--vertical" aria-hidden="true"></span>
                   <span class="joystick-guide joystick-guide--horizontal" aria-hidden="true"></span>
-                  <span class="joystick-direction joystick-direction--forward" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m7 14 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                  <span class="joystick-direction joystick-direction--backward" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m7 10 5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                  <span class="joystick-direction joystick-direction--left" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m14 7-5 5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                  <span class="joystick-direction joystick-direction--right" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m10 7 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                  <span class="joystick-direction joystick-direction--forward" aria-hidden="true"><span class="direction-chevron">⌃</span><span>Avanzar</span></span>
+                  <span class="joystick-direction joystick-direction--backward" aria-hidden="true"><span>Retroceder</span><span class="direction-chevron">⌄</span></span>
+                  <span class="joystick-direction joystick-direction--left" aria-hidden="true"><span>‹</span><span>Izq.</span></span>
+                  <span class="joystick-direction joystick-direction--right" aria-hidden="true"><span>Der.</span><span>›</span></span>
                   <span id="joystick-stick" class="joystick-stick" aria-hidden="true"><span class="stick-center"></span><span class="stick-grip"><i></i><i></i><i></i></span></span>
                 </div>
               </div>
-              <p id="joystick-help" class="control-hint">Arrastra para mover. Suelta para detener.</p>
-
-              <div id="direction-controls" class="direction-controls" role="group" aria-label="Controles de dirección alternativos">
-                <button type="button" class="direction-button" data-direction="left" aria-label="Izquierda" aria-keyshortcuts="ArrowLeft" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m10 5-7 7 7 7M3 12h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Izquierda</span></button>
-                <button type="button" class="direction-button" data-direction="forward" aria-label="Avanzar" aria-keyshortcuts="ArrowUp" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 10 7-7 7 7M12 3v18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Avanzar</span></button>
-                <button type="button" class="direction-button" data-direction="backward" aria-label="Retroceder" aria-keyshortcuts="ArrowDown" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 14 7 7 7-7M12 21V3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Retroceder</span></button>
-                <button type="button" class="direction-button" data-direction="right" aria-label="Derecha" aria-keyshortcuts="ArrowRight" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 5 7 7-7 7M21 12H3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Derecha</span></button>
+              <div id="direction-controls" class="direction-controls" role="group" aria-label="Botones alternativos de desplazamiento">
+                <button type="button" class="direction-button" data-direction="left" aria-label="Girar a la izquierda; mantén pulsado para mover" aria-keyshortcuts="ArrowLeft" disabled><span class="button-arrow" aria-hidden="true">←</span><span>Izq.</span></button>
+                <button type="button" class="direction-button" data-direction="forward" aria-label="Avanzar; mantén pulsado para mover" aria-keyshortcuts="ArrowUp" disabled><span class="button-arrow" aria-hidden="true">↑</span><span>Avanzar</span></button>
+                <button type="button" class="direction-button" data-direction="backward" aria-label="Retroceder; mantén pulsado para mover" aria-keyshortcuts="ArrowDown" disabled><span class="button-arrow" aria-hidden="true">↓</span><span>Retroceder</span></button>
+                <button type="button" class="direction-button" data-direction="right" aria-label="Girar a la derecha; mantén pulsado para mover" aria-keyshortcuts="ArrowRight" disabled><span class="button-arrow" aria-hidden="true">→</span><span>Der.</span></button>
               </div>
-
-              <button id="stop-button" class="stop-button" type="button" aria-keyshortcuts="Escape">
-                <span class="stop-symbol" aria-hidden="true"></span><span>DETENER</span><span class="stop-shortcut" aria-hidden="true">Esc</span>
-              </button>
-              <p class="stop-hint">La detención tiene prioridad sobre cualquier movimiento.</p>
-            </section>
-          </div>
-
-          <div class="col-12 col-lg-5 secondary-column">
-            <section class="panel auxiliary-panel" aria-labelledby="auxiliary-title">
-              <div class="panel-heading"><div><p class="eyebrow">02 / FUNCIONES</p><h2 id="auxiliary-title">Brazo y herramienta</h2></div><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19h7m-5 0v-5h5v5m0-5 5-9 5 11-5 2-3-8M6 14V9h5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-              <p class="panel-description">Movimientos disponibles en el catálogo del vehículo.</p>
-              <div id="auxiliary-controls" class="auxiliary-controls" role="group" aria-label="Funciones adicionales del vehículo"></div>
             </section>
 
-            <section class="panel demo-panel" aria-labelledby="demo-title">
-              <div class="panel-heading"><div><p class="eyebrow">03 / DEMOSTRACIONES</p><h2 id="demo-title">Una secuencia, lista</h2></div><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m9 5 10 7-10 7V5Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5v14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span></div>
-              <label class="field-label" for="demo-select">Selecciona una DEMO</label>
-              <select id="demo-select" class="form-select demo-select" disabled><option value="">Cargando demostraciones…</option></select>
-              <p id="demo-description" class="demo-description">Las secuencias se consultan y ejecutan desde la API.</p>
-              <p id="demo-summary" class="demo-summary">Sin DEMO seleccionada</p>
-              <div class="demo-actions">
-                <button id="start-demo" class="button-primary" type="button" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 10 7-10 7V5Z" fill="currentColor"/></svg><span>Ejecutar DEMO</span></button>
-                <button id="cancel-demo" class="button-secondary" type="button" disabled>Cancelar</button>
+            <section class="control-pod tool-panel" aria-labelledby="tool-title">
+              <div class="pod-heading"><h2 id="tool-title"><span>02</span> Brazo y pala</h2><span id="tool-joystick-label" class="direction-label" aria-live="polite">Neutral</span></div>
+              <div class="joystick-surround">
+                <div id="tool-joystick" class="joystick joystick--tool" role="group" tabindex="0" aria-label="Joystick de brazo y pala. Arriba: subir brazo. Abajo: bajar brazo. Izquierda: abrir pala. Derecha: cerrar pala." aria-describedby="joystick-help" aria-disabled="true">
+                  <span class="joystick-guide joystick-guide--vertical" aria-hidden="true"></span>
+                  <span class="joystick-guide joystick-guide--horizontal" aria-hidden="true"></span>
+                  <span class="joystick-direction joystick-direction--forward" aria-hidden="true"><span class="direction-chevron">⌃</span><span>Subir</span></span>
+                  <span class="joystick-direction joystick-direction--backward" aria-hidden="true"><span>Bajar</span><span class="direction-chevron">⌄</span></span>
+                  <span class="joystick-direction joystick-direction--left" aria-hidden="true"><span>‹</span><span>Abrir</span></span>
+                  <span class="joystick-direction joystick-direction--right" aria-hidden="true"><span>Cerrar</span><span>›</span></span>
+                  <span id="tool-joystick-stick" class="joystick-stick" aria-hidden="true"><span class="stick-center"></span><span class="stick-grip"><i></i><i></i><i></i></span></span>
+                </div>
+              </div>
+              <div id="tool-controls" class="direction-controls" role="group" aria-label="Botones alternativos de brazo y pala">
+                <button type="button" class="direction-button" data-tool-direction="left" aria-label="Abrir pala; mantén pulsado para mover" disabled><span class="button-arrow" aria-hidden="true">←</span><span>Abrir</span></button>
+                <button type="button" class="direction-button" data-tool-direction="forward" aria-label="Subir brazo; mantén pulsado para mover" disabled><span class="button-arrow" aria-hidden="true">↑</span><span>Subir</span></button>
+                <button type="button" class="direction-button" data-tool-direction="backward" aria-label="Bajar brazo; mantén pulsado para mover" disabled><span class="button-arrow" aria-hidden="true">↓</span><span>Bajar</span></button>
+                <button type="button" class="direction-button" data-tool-direction="right" aria-label="Cerrar pala; mantén pulsado para mover" disabled><span class="button-arrow" aria-hidden="true">→</span><span>Cerrar</span></button>
               </div>
             </section>
           </div>
-        </div>
+        </section>
 
-        <section class="last-action panel" aria-labelledby="action-title">
-          <div class="action-heading"><p id="action-title" class="eyebrow">ÚLTIMA SOLICITUD</p><h2 id="action-name">Sin actividad</h2></div>
+        <section class="demo-panel" aria-labelledby="demo-title">
+          <div class="demo-field">
+            <label id="demo-title" class="field-label" for="demo-select"><span class="demo-indicator" aria-hidden="true"></span>DEMO</label>
+            <select id="demo-select" class="form-select demo-select" aria-describedby="demo-summary" disabled><option value="">Cargando demostraciones…</option></select>
+          </div>
+          <div class="demo-actions">
+            <button id="start-demo" class="button-primary" type="button" disabled><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 10 7-10 7V5Z" fill="currentColor"/></svg><span>Ejecutar</span></button>
+            <button id="cancel-demo" class="button-secondary" type="button" disabled>Cancelar</button>
+          </div>
+          <p id="demo-summary" class="demo-summary">Sin DEMO seleccionada</p>
+        </section>
+
+        <button id="stop-button" class="stop-button" type="button" aria-keyshortcuts="Escape"><span class="stop-symbol" aria-hidden="true"></span><span>DETENER</span><span class="stop-shortcut" aria-hidden="true">ESC</span></button>
+
+        <section class="last-action" aria-labelledby="action-title">
+          <div class="action-heading"><p id="action-title" class="eyebrow">ÚLTIMA ACCIÓN</p><h2 id="action-name">Sin actividad</h2></div>
           <ol class="action-stages" aria-label="Evidencia de la última acción">
-            <li><span class="stage-number" aria-hidden="true">01</span><div><span class="stage-label">Solicitud</span><span id="action-requested" class="stage-value" data-state="idle">Pendiente</span></div></li>
-            <li><span class="stage-number" aria-hidden="true">02</span><div><span class="stage-label">Respuesta API</span><span id="action-accepted" class="stage-value" data-state="idle">Pendiente</span></div></li>
-            <li><span class="stage-number" aria-hidden="true">03</span><div><span class="stage-label">Evento WebSocket</span><span id="action-received" class="stage-value" data-state="idle">Pendiente</span></div></li>
+            <li><span class="stage-number" aria-hidden="true">1</span><div><span class="stage-label">Solicitud</span><span id="action-requested" class="stage-value" data-state="idle">Pendiente</span></div></li>
+            <li><span class="stage-number" aria-hidden="true">2</span><div><span class="stage-label">API</span><span id="action-accepted" class="stage-value" data-state="idle">Pendiente</span></div></li>
+            <li><span class="stage-number" aria-hidden="true">3</span><div><span class="stage-label">WebSocket</span><span id="action-received" class="stage-value" data-state="idle">Pendiente</span></div></li>
           </ol>
         </section>
 
         <div id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true">Esperando la conexión para habilitar los controles.</div>
-        <p class="verification-note">Una respuesta de la API o un evento WebSocket no confirma movimiento físico.</p>
       </main>
 
-      <footer class="app-footer">
-        <p id="developer-credit">Desarrollado por Nombre pendiente · 2026</p>
-        <span class="footer-mark">TERRA / CONTROL IoT</span>
-      </footer>
+      <footer class="app-footer"><p id="developer-credit">Desarrollado por Ricardo de Jesus Serrano Cortes · 2026</p><span class="footer-mark" aria-hidden="true">TERRA / CONTROL</span></footer>
     </div>
+
+    <dialog id="demo-dialog" class="details-dialog demo-dialog" aria-labelledby="compact-demo-title">
+      <div class="details-header"><div><p class="eyebrow">TERRA / CONTROL IoT</p><h2 id="compact-demo-title">Demostraciones</h2></div><form method="dialog"><button id="close-demo" class="icon-button" type="submit" aria-label="Cerrar demostraciones"><span aria-hidden="true">×</span></button></form></div>
+      <div id="compact-demo-content" class="compact-demo-content"></div>
+      <button id="demo-dialog-stop" class="stop-button details-stop" type="button"><span class="stop-symbol" aria-hidden="true"></span><span>DETENER</span></button>
+    </dialog>
+
+    <dialog id="details-dialog" class="details-dialog" aria-labelledby="details-title">
+      <div class="details-header"><div><p class="eyebrow">TERRA / CONTROL IoT</p><h2 id="details-title">Información y funciones</h2></div><form method="dialog"><button id="close-details" class="icon-button" type="submit" aria-label="Cerrar información"><span aria-hidden="true">×</span></button></form></div>
+      <div class="details-content">
+        <section class="details-section" aria-labelledby="connection-title"><h3 id="connection-title">Conexión y avisos</h3><p id="connection-notice">Comprobando los servicios. La conexión del navegador no confirma la presencia del vehículo físico.</p><p id="feedback-detail" class="detail-feedback">Esperando la conexión para habilitar los controles.</p><p class="verification-note">Una respuesta de la API o un evento WebSocket no confirma movimiento físico.</p></section>
+        <section class="details-section" aria-labelledby="help-title"><h3 id="help-title">Cómo controlar</h3><p id="joystick-help">Arrastra cada joystick o mantén pulsados sus botones. Suelta para detener. Con el joystick enfocado, usa las flechas del teclado. La tecla Escape y DETENER tienen prioridad sobre cualquier movimiento.</p><p>En el joystick de la pala: arriba sube el brazo, abajo lo baja, izquierda abre la pala y derecha la cierra.</p></section>
+        <section class="details-section" aria-labelledby="demo-details-title"><h3 id="demo-details-title">Demostración seleccionada</h3><p id="demo-description">Las secuencias se consultan y ejecutan desde la API.</p></section>
+        <section class="details-section" aria-labelledby="auxiliary-title"><h3 id="auxiliary-title">Funciones adicionales</h3><p>Movimientos adicionales disponibles en el catálogo del vehículo. Mantén pulsado para accionar.</p><div id="auxiliary-controls" class="auxiliary-controls" role="group" aria-label="Funciones adicionales del vehículo"></div></section>
+      </div>
+      <button id="details-stop" class="stop-button details-stop" type="button"><span class="stop-symbol" aria-hidden="true"></span><span>DETENER</span></button>
+    </dialog>
     <script type="module" src="./assets/js/app.js"></script>
   </body>
 </html>
