@@ -4,7 +4,9 @@ El rediseño está implementado localmente. GitHub Pages ya está publicado, seg
 
 ## Pantalla y controles
 
-La consola principal cabe en la pantalla móvil sin desplazar la página. Reúne los dos joysticks con botones alternativos, DETENER, conectividad, los tres estados de la última acción y créditos. DEMO conserva el selector y Ejecutar/Cancelar. En vertical con 560 px de alto o menos, el acceso **DEMO** del encabezado abre esos mismos controles en un panel: no se duplican sus IDs, eventos ni selección. El diálogo **Info** contiene ayuda, avisos, descripción de la DEMO y comandos adicionales; su contenido puede desplazarse internamente.
+La consola principal cabe en la pantalla móvil sin desplazar la página. Reúne los dos joysticks con botones alternativos, DETENER, conectividad, los tres estados de la última acción y créditos. DEMO conserva el selector y Ejecutar/Cancelar. En vertical con 560 px de alto o menos, y en horizontal con 600 px de alto o menos, el acceso **DEMO** del encabezado abre esos mismos controles en un panel: no se duplican sus IDs, eventos ni selección. El diálogo **Info** contiene ayuda, avisos, descripción de la DEMO y comandos adicionales; su contenido puede desplazarse internamente.
+
+En horizontal, la información se concentra en una columna lateral y los dos joysticks usan toda la altura del área de control. Los ocho botones alternativos se integran en sus posiciones cardinales y DETENER permanece en el encabezado con 44 px de alto. El panel DEMO usa una distribución ancha para que Ejecutar y Cancelar no se solapen con la parada cuando las barras del navegador reducen la altura.
 
 El joystick de desplazamiento conserva avanzar, retroceder y giros. El de brazo y pala resuelve los comandos por nombre en el catálogo, usando sus IDs y códigos reales:
 
@@ -35,6 +37,12 @@ La revisión con `http://localhost:4173/?simulation=1` comprobó 320 × 480, 320
 También se comprobó inicio/cancelación de DEMO, que cerrar su panel no cancele una secuencia en curso, su traslado al cambiar de orientación manteniendo un único selector, apertura/cierre de Info, teclado del segundo joystick y regreso a neutral. La consola de la aplicación no registró errores durante esas comprobaciones. Las capturas simuladas están en `artifacts/control-mobile-redesign.jpg`, `control-compact-redesign.jpg`, `control-landscape-redesign.jpg` y `control-desktop-redesign.jpg`.
 
 La revisión se hizo en el navegador integrado con tamaños de viewport; no sustituye una prueba en un teléfono físico. El modo simulado no abre conexiones con AWS. El asistente no envió POST a AWS ni validó movimiento físico; una respuesta HTTP o un evento WebSocket tampoco demuestra movimiento físico.
+
+### Corrección horizontal
+
+Se verificaron de nuevo 800 × 260, 740 × 280, 740 × 300, 800 × 280, 844 × 390, 568 × 320 y 915 × 240 CSS px, además de las vistas verticales 320 × 480 y 390 × 844 y escritorio 1280 × 900. No hubo scroll y los mandos, la parada y los créditos permanecieron dentro de la pantalla. Los círculos miden 164 px en 800 × 260, 172 px en 800 × 280 y 268 px en 844 × 390.
+
+Los ocho botones cardinales superaron la comprobación de impacto del puntero. Se probaron inicio y cancelación simulados de DEMO; en 800 × 260 su panel no necesita desplazamiento y las acciones quedan separadas de DETENER. La consola no registró errores. Captura actual: `artifacts/control-landscape-large.jpg`.
 
 ## Actualizar la publicación existente
 

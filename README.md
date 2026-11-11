@@ -12,7 +12,7 @@ El usuario confirmó que **HTTPS y WSS funcionan** en `excavadora-iot-rsc.duckdn
 
 ## Control móvil
 
-La pantalla principal muestra ambos joysticks, sus botones alternativos, DETENER, los tres estados de la última acción y los créditos sin desplazamiento de la página. DEMO conserva su selector y ejecución/cancelación; en vertical con 560 px de alto o menos, el botón **DEMO** del encabezado abre esos mismos controles en un panel. La ayuda, los avisos de conexión, la descripción de la DEMO y los comandos adicionales del catálogo están en el diálogo **Info**, con desplazamiento interno si hace falta.
+La pantalla principal muestra ambos joysticks, sus botones alternativos, DETENER, los tres estados de la última acción y los créditos sin desplazamiento de la página. En horizontal, los mandos aprovechan toda la altura, los botones se integran alrededor de los círculos y la información ocupa una columna lateral. DEMO conserva su selector y ejecución/cancelación; en horizontal de hasta 600 px de alto y vertical de hasta 560 px, el botón **DEMO** del encabezado abre esos mismos controles en un panel. La ayuda, los avisos de conexión, la descripción de la DEMO y los comandos adicionales del catálogo están en el diálogo **Info**, con desplazamiento interno si hace falta.
 
 El joystick izquierdo controla desplazamiento. El derecho controla brazo y pala mediante los comandos reales del catálogo:
 

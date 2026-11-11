@@ -201,7 +201,7 @@ $('demo-dialog').addEventListener('close', releaseManualControl);
 const demoPanel = document.querySelector('.demo-panel');
 const demoAnchor = document.createComment('Posición de DEMO en la consola');
 demoPanel.before(demoAnchor);
-const compactViewport = window.matchMedia('(max-height: 560px) and (orientation: portrait)');
+const compactViewport = window.matchMedia('(max-height: 560px) and (orientation: portrait), (max-height: 600px) and (orientation: landscape)');
 function placeDemoPanel() {
   releaseManualControl();
   if (compactViewport.matches) $('compact-demo-content').append(demoPanel);
