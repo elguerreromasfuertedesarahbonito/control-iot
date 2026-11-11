@@ -22,7 +22,7 @@ Después de la auditoría se ejecutaron pruebas reales de la API y WSS **autoriz
 | DEMO real | Ocho pasos, unos veinte segundos, finalización y cancelación comprobadas; navegación interna no canceló. |
 | Dispositivo físico y movimiento | Pendientes; no se probaron motores/placa conectados. |
 | Caídas reales de HTTP/WSS/Wi-Fi | Pendientes; fallos y recuperación cubiertos solo con sustitutos unitarios. |
-| Publicación de esta actualización | Autorizada y en proceso; falta registrar resultado/commit y revisión desde Pages. |
+| Publicación de esta actualización | Commit funcional `e54b0a7`, [workflow exitoso](https://github.com/elguerreromasfuertedesarahbonito/control-iot/actions/runs/43123386236); página pública verificada con WSS, API y diez filas reales. |
 
 ### Pruebas reales de API y WSS
 
@@ -202,7 +202,7 @@ Los siguientes casos distinguen las pruebas unitarias, las comprobaciones locale
 | Texto remoto con script/HTML | Texto visible, sin ejecución. | Prueba y revisión DOM. |
 | Modo simulado | MONITOREO sin GET a AWS ni historial ficticio. | Navegador y automatizada. |
 | Orientación y tamaños | Documento sin scroll, diez filas y STOP de 44 px. | Aprobado: 12 combinaciones de navegador; dispositivo físico pendiente. |
-| Pages bajo subruta | Recursos relativos, hashes, GET/CORS y WSS correctos. | Publicación autorizada/en proceso; revisión posterior pendiente. |
+| Pages bajo subruta | Recursos relativos, hashes, GET/CORS y WSS correctos. | Aprobado en la página HTTPS publicada: diez filas reales, WSS en línea, API disponible y consola sin errores. |
 
 ### Accesibilidad
 
@@ -245,6 +245,6 @@ Las medidas están en `artifacts/responsive-audit.json`. La emulación de tamañ
 
 Resultado automatizado: **68 pruebas aprobadas, cero fallos**, con Fetch/WSS sustituidos. No se presentan como pruebas de disponibilidad de AWS. Las evidencias reales de esta sesión se enumeran arriba y se separan de fixtures y de la prueba física pendiente. Cada registro conserva su fecha/entorno; el contador de historial puede cambiar con nuevas órdenes.
 
-El workflow de Pages prueba y publica `index.html`, `assets/` y `.nojekyll`. Los módulos nuevos se incluyen al copiar `assets/`; no se necesita otro backend ni instalar paquetes. La publicación está **autorizada y en proceso**; falta registrar commit, resultado del workflow y comprobación desde la URL publicada. Mantener las rutas relativas y verificar hashes bajo `/control-iot/`. Postman/Thunder Client/extensión sigue como evidencia específica pendiente aunque ya se validó el cliente Node independiente.
+El workflow de Pages prueba y publica `index.html`, `assets/` y `.nojekyll`. Los módulos nuevos se incluyen al copiar `assets/`; no se necesita otro backend ni instalar paquetes. La publicación funcional del commit `e54b0a7` está **completada**: el [workflow](https://github.com/elguerreromasfuertedesarahbonito/control-iot/actions/runs/43123386236) terminó con éxito y se comprobó [MONITOREO en Pages](https://elguerreromasfuertedesarahbonito.github.io/control-iot/#monitoreo) con WSS en línea, API disponible, RDS sin verificar, diez filas reales (IDs 570–561) y consola sin errores. La captura móvil de la publicación es `artifacts/monitor-published-mobile.jpg` y sus datos están en `artifacts/published-check.json`. Las órdenes/DEMO documentadas se enviaron desde el frontend local usando esta misma API real; en Pages se verificó la carga y conexión, sin repetir órdenes. Mantener las rutas relativas y verificar hashes bajo `/control-iot/`. Postman/Thunder Client/extensión sigue como evidencia específica pendiente aunque ya se validó el cliente Node independiente.
 
 El código completo se entrega como archivos del proyecto/ZIP, sin duplicarlo íntegro en README o informe. [pruebas.md](pruebas.md) conserva escenarios A–E y [entrega.md](entrega.md) la guía institucional.

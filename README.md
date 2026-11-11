@@ -6,7 +6,7 @@ Desarrollado por **Ricardo de Jesús Serrano Cortés · 2026**.
 
 ## Estado de esta entrega
 
-Esta actualización integra CONTROL y MONITOREO y supera **68/68 pruebas automatizadas** con Fetch/WSS sustituidos. La revisión local comprobó ambas vistas en seis tamaños —12 combinaciones— sin scroll del documento, con diez filas de historial y DETENER de 44 px. La [validación completa](docs/monitoreo.md) distingue estos resultados de las pruebas reales de API. La publicación de esta actualización está autorizada y en proceso; falta registrar su resultado y comprobarla desde [GitHub Pages](https://elguerreromasfuertedesarahbonito.github.io/control-iot/).
+Esta actualización integra CONTROL y MONITOREO y supera **68/68 pruebas automatizadas** con Fetch/WSS sustituidos. La revisión local comprobó ambas vistas en seis tamaños —12 combinaciones— sin scroll del documento, con diez filas de historial y DETENER de 44 px. La [validación completa](docs/monitoreo.md) distingue estos resultados de las pruebas reales de API. La actualización está publicada en [GitHub Pages](https://elguerreromasfuertedesarahbonito.github.io/control-iot/#monitoreo). El [workflow del commit funcional `e54b0a7`](https://github.com/elguerreromasfuertedesarahbonito/control-iot/actions/runs/43123386236) terminó correctamente; en la página pública se comprobaron WSS en línea, API disponible, diez registros reales y consola sin errores.
 
 El 11 de noviembre de 2026 se comprobaron HTTP 200 de OpenAPI, estado, historial y salud, además de CORS con el origen real de Pages. La primera auditoría leyó 537 filas y el [reporte de las 23:45 UTC](docs/evidencia-red.json) registró 563: corresponden a instantes distintos. El usuario confirmó el procedimiento SQL y UTC en MySQL.
 
@@ -52,7 +52,7 @@ Para ejecutar las pruebas automáticas:
 node --test tests/*.test.js
 ```
 
-Las direcciones públicas están configuradas en `assets/js/config.js`: API `https://excavadora-iot-rsc.duckdns.org` y WebSocket `wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}`. Las pruebas automatizadas sustituyen transportes y usan fixtures; se distinguen de las lecturas reales documentadas y de las pruebas operativas pendientes.
+Las direcciones públicas están configuradas en `assets/js/config.js`: API `https://excavadora-iot-rsc.duckdns.org` y WebSocket `wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}`. Las pruebas automatizadas sustituyen transportes y usan fixtures; se distinguen de las lecturas y órdenes reales documentadas y de las verificaciones específicas todavía pendientes.
 
 ## Arquitectura y archivos
 
@@ -124,7 +124,7 @@ El [contrato de CONTROL](docs/api-contract.md) se complementa con el [contrato d
 
 El texto «21 servicios» corresponde al enunciado. La copia auditada del backend contiene 26 operaciones REST propias y un WebSocket; el frontend utiliza las necesarias para CONTROL y MONITOREO. El campo `estado.conectado` es un dato escrito por el backend y no constituye un latido fiable del ESP8266 ni confirma movimiento físico.
 
-GitHub Pages proporciona HTTPS al frontend, pero no convierte las direcciones `http://` y `ws://` de EC2 en conexiones seguras. El cliente utiliza la API HTTPS y el canal WSS existentes. La configuración de DuckDNS y Caddy se explica en [despliegue-ec2-windows.md](docs/despliegue-ec2-windows.md). La comprobación CORS de esta etapa empleó `https://elguerreromasfuertedesarahbonito.github.io`, sin subruta; el funcionamiento completo desde la nueva versión publicada se verificará después de desplegarla.
+GitHub Pages proporciona HTTPS al frontend, pero no convierte las direcciones `http://` y `ws://` de EC2 en conexiones seguras. El cliente utiliza la API HTTPS y el canal WSS existentes. La configuración de DuckDNS y Caddy se explica en [despliegue-ec2-windows.md](docs/despliegue-ec2-windows.md). La comprobación CORS de esta etapa empleó `https://elguerreromasfuertedesarahbonito.github.io`, sin subruta; la nueva página publicada recibió estado/historial reales y la bienvenida WSS con ese origen.
 
 No se agregan tokens de DuckDNS, claves AWS, credenciales RDS ni secretos a `config.js`. El navegador no se conecta directamente a MySQL. Los datos remotos se representan como texto, no como HTML ejecutable. CORS no equivale a autenticación; la API actual no autentica sus routers y esta entrega no inventa un token o login local que parezca protegerla.
 
@@ -132,8 +132,8 @@ No se agregan tokens de DuckDNS, claves AWS, credenciales RDS ni secretos a `con
 
 El frontend dispone de su repositorio `control-iot` bajo la cuenta `elguerreromasfuertedesarahbonito` y su [página publicada](https://elguerreromasfuertedesarahbonito.github.io/control-iot/). El [repositorio de API indicado por el alumno](https://github.com/elguerreromasfuertedesarahbonito/Vehiculo-iot-api) se mantiene separado; no subas la carpeta completa del proyecto IoT ni el backend al frontend.
 
-La publicación de esta actualización está autorizada y en proceso; el resultado del workflow, commit y verificación final se registrarán al terminar. El workflow se ejecuta al actualizar `main`, prueba el código y publica únicamente `index.html`, `assets/` y `.nojekyll`; también permite ejecución manual. Los módulos nuevos están dentro de `assets/` y no requieren cambios en el backend ni dependencias nuevas.
+El commit funcional `e54b0a7` está publicado y su [workflow](https://github.com/elguerreromasfuertedesarahbonito/control-iot/actions/runs/43123386236) terminó con éxito. La comprobación en el navegador de Pages mostró diez filas (IDs 570–561), API disponible, WSS en línea y RDS sin verificar, sin errores de consola. El workflow se ejecuta al actualizar `main`, prueba el código y publica únicamente `index.html`, `assets/` y `.nojekyll`; también permite ejecución manual. Los módulos nuevos están dentro de `assets/` y no requieren cambios en el backend ni dependencias nuevas.
 
-Todas las referencias de recursos son relativas para funcionar bajo `/control-iot/`; la navegación utiliza hash. La publicación existente y la implementación local son versiones distintas hasta que termine correctamente el siguiente despliegue. El código completo se entrega como archivos del proyecto/ZIP y no se duplica íntegro en el README.
+Todas las referencias de recursos son relativas para funcionar bajo `/control-iot/`; la navegación utiliza hash. La versión funcional publicada corresponde a estos módulos; los ajustes posteriores de documentación no cambian el frontend. El código completo se entrega como archivos del proyecto/ZIP y no se duplica íntegro en el README.
 
 Antes de presentar la práctica, completa las [pruebas y evidencias](docs/pruebas.md), confirma la página desde un teléfono real y prepara el Word/PDF siguiendo [la plantilla de entrega](docs/entrega.md). Ya se proporcionaron los datos institucionales: Instituto Tecnológico de Pachuca (ITP), Ingeniería en Sistemas Computacionales, docente Víctor Pinedo Fernández, fecha de entrega 10/11/2026 y logotipo. El informe sigue siendo un borrador, con evidencias reales pendientes.
