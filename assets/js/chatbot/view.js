@@ -1,5 +1,6 @@
 import { ChatSession } from './session.js';
 import { createVoiceInput } from './voice.js';
+import { createRecordedRecognition } from './voice-capture.js';
 import { isStopMessage } from './contracts.js';
 
 export function createChatbot({ api, control, enabled = true }) {
@@ -12,6 +13,7 @@ export function createChatbot({ api, control, enabled = true }) {
   const send = find('chat-send');
   const mic = find('chat-mic');
   const status = find('chat-status');
+  const voiceHelp = find('chat-voice-help');
   const confirmationForm = find('chat-confirmation');
   const admin = find('chat-admin-key');
   let expiryTimer;
@@ -41,7 +43,8 @@ export function createChatbot({ api, control, enabled = true }) {
     mic.disabled = value || !voice?.supported || Boolean(session.confirmation);
     find('chat-confirm').disabled = value;
     find('chat-cancel-confirm').disabled = value && session.confirming;
-    status.textContent = value ? 'Procesando petición… DETENER sigue disponible.' : 'Listo · movimientos de hasta 1 segundo';
+    status.textContent = value ? 'Procesando petición… DETENER sigue disponible.'
+      : voice?.supported ? 'Listo · movimientos de hasta 1 segundo' : 'Voz no disponible en este navegador. Puedes escribir.';
     form.setAttribute('aria-busy', String(value));
   }
   const session = new ChatSession(api, control, {
@@ -62,15 +65,26 @@ export function createChatbot({ api, control, enabled = true }) {
   });
   voice = createVoiceInput({
     button: mic,
+    RecordedRecognition: enabled && typeof api.transcribeVoice === 'function'
+      ? createRecordedRecognition({ transcribe: (audio, options) => api.transcribeVoice(audio, options) })
+      : null,
     onTranscript(text) {
       if (!dialog.open || busy || session.confirmation) return;
       void session.submit(text);
     },
     onStatus(state, detail = {}) {
+      voiceHelp.dataset.mode = detail.mode;
+      voiceHelp.textContent = detail.mode === 'recorded'
+        ? 'Toca para alternar o mantén y suelta. Al terminar, la grabación se envía a Gemini para transcribirla.'
+        : 'Voz: toca para alternar o mantén y suelta. El reconocimiento puede usar el servicio de voz del navegador.';
       if (busy) return;
-      status.textContent = state === 'listening' ? (detail.transcript || 'Escuchando… suelta o toca para terminar.')
-        : state === 'processing' ? 'Finalizando reconocimiento…'
-          : voice?.supported ? 'Listo · movimientos de hasta 1 segundo' : 'Voz no disponible en este navegador. Puedes escribir.';
+      if (state === 'listening') {
+        status.textContent = detail.starting ? 'Activando micrófono…' : detail.transcript || 'Escuchando… suelta o toca para terminar.';
+      } else if (state === 'processing') {
+        status.textContent = detail.mode === 'recorded' ? 'Transcribiendo con Gemini…' : 'Finalizando reconocimiento…';
+      } else {
+        status.textContent = detail.supported ? 'Listo · movimientos de hasta 1 segundo' : 'Voz no disponible en este navegador. Puedes escribir.';
+      }
     },
     onError(error) { append('error', error.message); },
   });

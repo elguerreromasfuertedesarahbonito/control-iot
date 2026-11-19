@@ -27,6 +27,20 @@ function fixture(replies, changes = {}) {
 
 const invalidResponse = error => error instanceof ApiError && error.kind === 'invalid-response' && error.status === 200;
 
+test('transcribir sube audio binario a la API sin clave administrativa', async () => {
+  const audio = new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/webm;codecs=opus' });
+  const { api, calls } = fixture([response({ texto: 'estado' }), response({ texto: '' })]);
+  assert.equal(await api.transcribeVoice(audio), 'estado');
+  assert.equal(await api.transcribeVoice(audio), '');
+  const { url, options } = calls[0];
+  assert.equal(url, 'https://api.example.test/asistente/transcribir');
+  assert.equal(options.method, 'POST');
+  assert.equal(options.headers['Content-Type'], 'audio/webm');
+  assert.equal(options.body, audio);
+  assert.equal('X-Admin-Key' in options.headers, false);
+  assert.equal(options.credentials, 'omit');
+});
+
 test('interpretar usa POST, vehículo/UUID correlacionado y únicamente el cuerpo del contrato', async () => {
   const data = movement();
   const { api, calls } = fixture([response(data)]);

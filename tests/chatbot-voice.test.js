@@ -42,7 +42,7 @@ class Clock extends Surface {
   }
 }
 
-function fixture({ supported = true, startError = false } = {}) {
+function fixture({ supported = true, startError = false, recorded = false } = {}) {
   const clock = new Clock();
   const document = new Surface();
   document.defaultView = clock;
@@ -76,9 +76,12 @@ function fixture({ supported = true, startError = false } = {}) {
     end() { this.onend?.(); }
     error(code) { this.onerror?.({ error: code }); }
   }
+  class Recorder extends Recognition {
+    static endTimeoutMs = 30000;
+  }
   const transcripts = [], statuses = [], errors = [];
   const voice = createVoiceInput({
-    button, Recognition: supported ? Recognition : null,
+    button, Recognition: supported ? Recognition : null, RecordedRecognition: recorded ? Recorder : null,
     onTranscript: (value) => transcripts.push(value),
     onStatus: (...value) => statuses.push(value), onError: (value) => errors.push(value),
   });
@@ -87,6 +90,49 @@ function fixture({ supported = true, startError = false } = {}) {
   const tap = () => { down(); clock.tick(40); up(); button.emit("click", { detail: 1 }); };
   return { voice, clock, document, button, instances, transcripts, statuses, errors, down, up, tap };
 }
+
+test("un fallo de red cambia al grabador solo en el siguiente gesto y espera su transcripción", () => {
+  const f = fixture({ recorded: true });
+  f.tap();
+  const native = f.instances[0];
+  native.results([["avanza", true]]);
+  native.error("network");
+  assert.equal(native.aborts, 1);
+  assert.equal(f.instances.length, 1, "el error no vuelve a abrir el micrófono");
+  assert.equal(f.voice.mode, "recorded");
+  assert.match(f.errors[0].message, /Pulsa el micrófono otra vez/);
+  assert.deepEqual(f.transcripts, [], "se descarta incluso un resultado nativo previo al error");
+
+  f.down(); f.clock.tick(300); f.up();
+  const recorder = f.instances[1];
+  assert.equal(recorder.stops, 1);
+  f.clock.tick(2100);
+  assert.equal(recorder.aborts, 0);
+  recorder.results([["estado", true]]);
+  recorder.end(); recorder.end();
+  assert.deepEqual(f.transcripts, ["estado"]);
+  f.voice.destroy();
+});
+
+test("el grabador admite toques cuando SpeechRecognition no existe", () => {
+  const f = fixture({ supported: false, recorded: true });
+  assert.equal(f.voice.supported, true);
+  assert.equal(f.voice.mode, "recorded");
+  assert.equal(f.instances.length, 0);
+  f.tap(); f.tap();
+  assert.equal(f.instances.length, 1);
+  assert.equal(f.instances[0].stops, 1);
+  f.voice.destroy();
+  assert.equal(f.instances[0].aborts, 1);
+});
+
+test("denegar el permiso no habilita otro motor", () => {
+  const f = fixture({ recorded: true });
+  f.tap(); f.instances[0].error("not-allowed");
+  assert.equal(f.voice.mode, "native");
+  assert.equal(f.instances.length, 1);
+  f.voice.destroy();
+});
 
 test("un toque empieza inmediatamente y mantiene la escucha hasta el segundo toque", () => {
   const f = fixture();

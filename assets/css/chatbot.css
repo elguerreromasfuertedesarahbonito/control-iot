@@ -96,7 +96,7 @@
   .chat-header { padding: 6px 12px; }
   .chat-avatar { height: 32px; width: 32px; font-size: 21px; }
   .chat-heading h2 { font-size: 17px; }
-  .chat-heading p, .chat-voice-help { display: none; }
+  .chat-heading p, .chat-voice-help:not([data-mode="recorded"]) { display: none; }
   .chat-form { padding: 6px 12px; }
   .chat-composer, .chat-composer textarea { min-height: 52px; }
   .chat-composer textarea { padding: 10px 108px 10px 10px; height: 52px; }

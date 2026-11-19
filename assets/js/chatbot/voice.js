@@ -2,6 +2,7 @@
 const MAX_SESSION_MS = 30000;
 const END_TIMEOUT_MS = 2000;
 const MAX_TRANSCRIPT = 1000;
+const FALLBACK_ERRORS = new Set(["network", "service-not-allowed", "language-not-supported"]);
 
 const ERROR_MESSAGES = {
   "not-allowed": "No se autorizó el micrófono. Revisa los permisos del navegador.",
@@ -10,6 +11,11 @@ const ERROR_MESSAGES = {
   "no-speech": "No se detectó voz. Puedes intentarlo de nuevo.",
   network: "El servicio de reconocimiento de voz no está disponible.",
   "language-not-supported": "El reconocimiento de voz no admite el idioma solicitado.",
+  "transcription-unavailable": "La API de voz no está disponible. Puedes escribir la petición.",
+  "transcription-not-installed": "El respaldo de voz aún no está instalado en la API de EC2. Puedes escribir la petición.",
+  "audio-too-large": "La grabación es demasiado grande. Intenta con una frase más corta.",
+  "audio-format": "El formato de grabación del navegador no es compatible. Puedes escribir la petición.",
+  "transcription-rate-limit": "Se alcanzó el límite de transcripciones. Espera un momento o escribe la petición.",
   aborted: "Se canceló el reconocimiento de voz.",
 };
 
@@ -21,6 +27,7 @@ export function createVoiceInput({
   onStatus = () => {},
   onError = () => {},
   Recognition = globalThis.window?.SpeechRecognition ?? globalThis.window?.webkitSpeechRecognition,
+  RecordedRecognition = null,
   holdDelayMs = 280,
 } = {}) {
   if (!button?.addEventListener || !button?.setAttribute) {
@@ -34,7 +41,10 @@ export function createVoiceInput({
   };
   const now = () => view.performance?.now?.() ?? Date.now();
   const holdDelay = Number.isFinite(holdDelayMs) && holdDelayMs >= 0 ? holdDelayMs : 280;
-  const supported = typeof Recognition === "function";
+  const nativeSupported = typeof Recognition === "function";
+  const recordedSupported = typeof RecordedRecognition === "function";
+  const supported = nativeSupported || recordedSupported;
+  let mode = nativeSupported ? "native" : recordedSupported ? "recorded" : "unsupported";
   const listeners = [];
   const pressedKeys = new Set();
   let session = null;
@@ -54,7 +64,7 @@ export function createVoiceInput({
       button.dataset.listening = String(value === "listening");
       button.dataset.voiceState = value;
     }
-    notify(onStatus, value, detail);
+    notify(onStatus, value, { ...detail, mode });
   }
 
   function releasePointer() {
@@ -93,8 +103,12 @@ export function createVoiceInput({
 
   function recognitionError(current, code, cause) {
     if (session !== current) return;
+    const fallback = current.mode === "native" && recordedSupported && FALLBACK_ERRORS.has(code);
+    if (fallback) mode = "recorded";
     abort(current, "error");
-    notify(onError, { code, message: ERROR_MESSAGES[code] ?? "No se pudo reconocer la voz. Inténtalo de nuevo.", ...(cause ? { cause } : {}) });
+    const message = fallback ? "Falló el reconocimiento del navegador. Pulsa el micrófono otra vez para grabar y transcribir con Gemini."
+      : ERROR_MESSAGES[code] ?? "No se pudo reconocer la voz. Inténtalo de nuevo.";
+    notify(onError, { code, message, ...(cause ? { cause } : {}) });
   }
 
   function stop({ discard = false } = {}) {
@@ -115,7 +129,7 @@ export function createVoiceInput({
       if (session !== current) return;
       abort(current, "end-timeout");
       notify(onError, { code: "end-timeout", message: "El reconocimiento no terminó a tiempo. No se envió la transcripción." });
-    }, END_TIMEOUT_MS);
+    }, current.endTimeoutMs);
     try { current.recognition.stop(); } catch (cause) {
       recognitionError(current, "stop-failed", cause);
     }
@@ -123,14 +137,15 @@ export function createVoiceInput({
 
   function start() {
     if (destroyed || !supported || button.disabled || session) return;
+    const Engine = mode === "recorded" ? RecordedRecognition : Recognition;
     let recognition;
-    try { recognition = new Recognition(); } catch (cause) {
+    try { recognition = new Engine(); } catch (cause) {
       notify(onError, { code: "start-failed", message: "No se pudo iniciar el reconocimiento de voz.", cause });
       return;
     }
     const current = {
       recognition, final: new Map(), stopping: false, discard: false,
-      limitTimer: null, endTimer: null,
+      mode, endTimeoutMs: Engine.endTimeoutMs ?? END_TIMEOUT_MS, limitTimer: null, endTimer: null,
     };
     session = current;
     recognition.lang = "es-MX";
@@ -162,7 +177,7 @@ export function createVoiceInput({
     current.limitTimer = setTimer(() => {
       if (session === current) stop();
     }, MAX_SESSION_MS);
-    status("listening", { supported });
+    status("listening", { supported, starting: mode === "recorded" });
     try { recognition.start(); } catch (cause) {
       recognitionError(current, "start-failed", cause);
     }
@@ -253,6 +268,7 @@ export function createVoiceInput({
 
   return {
     supported,
+    get mode() { return mode; },
     stop,
     destroy() {
       if (destroyed) return;

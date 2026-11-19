@@ -20,6 +20,14 @@ La revisión de tamaños de navegador no equivale a un teléfono físico. El mic
 
 Abrir el panel del asistente y escribir una solicitud concreta sobre el vehículo seleccionado. La voz es una entrada alternativa: el resultado reconocido se muestra como texto y utiliza la misma lógica que el formulario.
 
+### Respaldo de voz en computadora
+
+El chat intenta primero el reconocimiento del navegador. Si este reporta un error de red o de disponibilidad, el chat pide pulsar nuevamente el micrófono. Ese siguiente gesto inicia una grabación con `MediaRecorder`. Se puede tocar para iniciar y terminar o mantener pulsado y soltar. Si el navegador carece de reconocimiento nativo, el chat muestra directamente la opción de grabación.
+
+Al finalizar la grabación, FastAPI recibe el audio en `POST /asistente/transcribir` y Gemini devuelve el texto. La clave sigue en EC2. El chat cancela la grabación al cerrar el cuadro, usar DETENER o cambiar de pestaña.
+
+Para instalar la corrección sobre una instalación que ya usa el chatbot, copia `app/routers/asistente.py` y `app/services/assistant_audio.py` a la API de EC2 y reinicia FastAPI. Luego actualiza GitHub Pages con los archivos modificados en `assets/`. Verifica que `POST /asistente/transcribir` aparezca en Swagger antes de probar el micrófono. En la computadora, dicta «estado» y comprueba que aparezca la respuesta del vehículo.
+
 Ejemplos de intención, sujetos al catálogo real:
 
 - «Avanza un segundo» o «sube el brazo» para solicitar un movimiento admitido.

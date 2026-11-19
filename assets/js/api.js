@@ -51,7 +51,7 @@ function serverDetail(body) {
 
 /** Construir el cliente no abre conexiones; cada método devuelve una promesa. */
 export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
-  async function request(path, { method = "GET", body, signal, validate = object, timeoutMs, adminKey } = {}) {
+  async function request(path, { method = "GET", body, contentType = "application/json", signal, validate = object, timeoutMs, adminKey } = {}) {
     const url = apiUrl(config, path);
     if (typeof fetchImpl !== "function") {
       throw new ApiError("Este navegador no permite realizar peticiones HTTP.", { kind: "config" });
@@ -70,11 +70,11 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
     }, duration);
     try {
       const headers = { Accept: "application/json" };
-      if (body !== undefined) headers["Content-Type"] = "application/json";
+      if (body !== undefined) headers["Content-Type"] = contentType;
       if (adminKey !== undefined) headers['X-Admin-Key'] = adminKey;
       const response = await fetchImpl(url, {
         method, headers, signal: controller.signal, credentials: "omit", cache: "no-store",
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        ...(body !== undefined ? { body: contentType === "application/json" ? JSON.stringify(body) : body } : {}),
       });
       let data;
       try {
@@ -138,6 +138,14 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
         body: { id_vehiculo: vehicleId(), mensaje: message, request_id: requestId },
         validate: value => isAssistantResponse(value) && value.request_id === requestId,
       });
+    },
+    async transcribeVoice(blob, { signal } = {}) {
+      const contentType = blob.type.split(';', 1)[0];
+      const result = await request('/asistente/transcribir', {
+        method: 'POST', body: blob, contentType, signal, timeoutMs: 28000,
+        validate: value => object(value) && typeof value.texto === 'string' && value.texto.length <= 1000,
+      });
+      return result.texto;
     },
     async confirmAssistant(token, requestId, adminKey, { signal } = {}) {
       return request('/asistente/confirmar', {
