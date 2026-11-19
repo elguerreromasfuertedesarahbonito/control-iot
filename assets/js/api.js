@@ -1,5 +1,5 @@
 import { isStateResponse, isHistoryResponse } from './monitoring-validation.js';
-import { isAssistantResponse } from './chatbot/contracts.js';
+import { isAssistantResponse, MAX_VOICE_DURATION_MS } from './chatbot/contracts.js';
 
 /** Contrato HTTP de la API existente. No reintenta órdenes POST. */
 export class ApiError extends Error {
@@ -132,11 +132,12 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
       // El procedimiento real no acepta límite ni orden: se normaliza después de leer.
       return request(`/historial/${vehicleId()}`, { signal, validate: isHistoryResponse });
     },
-    async interpret(message, requestId, { signal } = {}) {
+    async interpret(message, requestId, { signal, entrada } = {}) {
       return request('/asistente/interpretar', {
         method: 'POST', signal, timeoutMs: config.assistantTimeoutMs ?? 35000,
-        body: { id_vehiculo: vehicleId(), mensaje: message, request_id: requestId },
-        validate: value => isAssistantResponse(value) && value.request_id === requestId,
+        body: { id_vehiculo: vehicleId(), mensaje: message, request_id: requestId,
+          ...(entrada === 'voz' ? { entrada } : {}) },
+        validate: value => isAssistantResponse(value, { entrada }) && value.request_id === requestId,
       });
     },
     async transcribeVoice(blob, { signal } = {}) {
@@ -184,13 +185,18 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
         validate: (value) => object(value) && value.id_demo === demo && value.id_vehiculo === vehicle && typeof value.corriendo === "boolean",
       });
     },
-    async manual(commandId, { signal } = {}) {
+    async manual(commandId, { signal, durationMs } = {}) {
       const vehicle = vehicleId();
       const command = requireId(commandId, "El comando");
+      if (durationMs !== undefined && (!Number.isInteger(durationMs) || durationMs < 1 || durationMs > MAX_VOICE_DURATION_MS)) {
+        throw new ApiError("La duración debe estar entre 1 y 10000 milisegundos.", { kind: "config" });
+      }
       return request(`/vehiculos/${vehicle}/comando-manual`, {
-        method: "POST", body: { id_comando: command, origen: "MANUAL" }, signal,
+        method: "POST", signal,
+        body: { id_comando: command, origen: "MANUAL", ...(durationMs === undefined ? {} : { duracion_ms: durationMs }) },
         validate: (value) => object(value) && value.ok === true && value.id_vehiculo === vehicle &&
-          value.id_comando === command && uuid(value.id_evento) && object(value.estado),
+          value.id_comando === command && uuid(value.id_evento) && object(value.estado) &&
+          (durationMs === undefined || value.duracion_ms === durationMs),
       });
     },
     async startDemo(id, { signal } = {}) {

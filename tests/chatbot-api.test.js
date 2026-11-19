@@ -59,6 +59,30 @@ test('interpretar usa POST, vehículo/UUID correlacionado y únicamente el cuerp
   assert.equal('X-Admin-Key' in options.headers, false);
 });
 
+test('interpretar acepta hasta diez segundos para el transcript y solo para el transcript', async () => {
+  const command = duration => actionResponse({ tipo: 'comando', id_comando: 81, duracion_ms: duration });
+  const { api, calls } = fixture([response(command(10000)), response(command(10001)), response(command(5000))]);
+  const query = 'avanza durante diez segundos';
+  assert.deepEqual(await api.interpret(query, requestId, { entrada: 'voz' }), command(10000));
+  assert.deepEqual(JSON.parse(calls[0].options.body), { id_vehiculo: 7, mensaje: query, request_id: requestId, entrada: 'voz' });
+  await assert.rejects(api.interpret(query, requestId, { entrada: 'voz' }), invalidResponse);
+  await assert.rejects(api.interpret(query, requestId), invalidResponse);
+  assert.equal('entrada' in JSON.parse(calls[2].options.body), false);
+});
+
+test('el POST manual envía la duración solo cuando se indica y comprueba la duración aceptada', async () => {
+  const accepted = { ok: true, id_vehiculo: 7, id_comando: 81, id_evento: requestId, estado: {} };
+  const timed = { ...accepted, duracion_ms: 5000 };
+  const { api, calls } = fixture([response(accepted), response(timed), response(accepted)]);
+  assert.deepEqual(await api.manual(81), accepted);
+  assert.deepEqual(JSON.parse(calls[0].options.body), { id_comando: 81, origen: 'MANUAL' });
+  assert.deepEqual(await api.manual(81, { durationMs: 5000 }), timed);
+  assert.deepEqual(JSON.parse(calls[1].options.body), { id_comando: 81, origen: 'MANUAL', duracion_ms: 5000 });
+  await assert.rejects(api.manual(81, { durationMs: 5000 }), invalidResponse);
+  await assert.rejects(api.manual(81, { durationMs: 10001 }), error => error.kind === 'config');
+  assert.equal(calls.length, 3);
+});
+
 test('confirmar envía la clave solo en su cabecera y nunca la conserva para interpretar', async () => {
   const simulatedKey = 'simulated-admin-header-only';
   const confirmed = actionResponse({ tipo: 'eliminar_comando', id_comando: 81 });

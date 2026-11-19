@@ -71,6 +71,7 @@ test('un movimiento espera interpretación y conserva la versión capturada', as
   assert.equal(f.interpretations[0].args[0], 'avanza');
   assert.equal(f.interpretations[0].args[1], 'request-1');
   assert.ok(f.interpretations[0].args[2].signal instanceof AbortSignal);
+  assert.equal(f.interpretations[0].args[2].entrada, undefined);
   assert.equal(f.executions.length, 0);
   f.interpretations[0].resolve(move());
   assert.equal(await task, true);
@@ -87,6 +88,16 @@ test('otra petición normal no se acumula mientras la anterior está ocupada', a
   assert.equal(await f.session.submit('retrocede'), false);
   assert.equal(f.interpretations.length, 1);
   f.interpretations[0].resolve(move()); await task;
+});
+
+test('una transcripción pide interpretación como voz y reenvía la duración aprobada', async () => {
+  const f = fixture();
+  const submission = f.session.submit('avanza durante cinco segundos', { entrada: 'voz' });
+  assert.equal(f.interpretations[0].args[2].entrada, 'voz');
+  const action = { tipo: 'comando', id_comando: 42, duracion_ms: 5000 };
+  f.interpretations[0].resolve(answer(action));
+  assert.equal(await submission, true);
+  assert.deepEqual(f.executions[0].action, action);
 });
 
 test('DETENER es prioritario, aborta interpretación y nunca espera al modelo', async () => {

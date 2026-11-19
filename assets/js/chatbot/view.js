@@ -44,7 +44,7 @@ export function createChatbot({ api, control, enabled = true }) {
     find('chat-confirm').disabled = value;
     find('chat-cancel-confirm').disabled = value && session.confirming;
     status.textContent = value ? 'Procesando petición… DETENER sigue disponible.'
-      : voice?.supported ? 'Listo · movimientos de hasta 1 segundo' : 'Voz no disponible en este navegador. Puedes escribir.';
+      : voice?.supported ? 'Listo para escribir o dictar.' : 'Voz no disponible en este navegador. Puedes escribir.';
     form.setAttribute('aria-busy', String(value));
   }
   const session = new ChatSession(api, control, {
@@ -70,7 +70,7 @@ export function createChatbot({ api, control, enabled = true }) {
       : null,
     onTranscript(text) {
       if (!dialog.open || busy || session.confirmation) return;
-      void session.submit(text);
+      void session.submit(text, { entrada: 'voz' });
     },
     onStatus(state, detail = {}) {
       voiceHelp.dataset.mode = detail.mode;
@@ -83,7 +83,7 @@ export function createChatbot({ api, control, enabled = true }) {
       } else if (state === 'processing') {
         status.textContent = detail.mode === 'recorded' ? 'Transcribiendo con Gemini…' : 'Finalizando reconocimiento…';
       } else {
-        status.textContent = detail.supported ? 'Listo · movimientos de hasta 1 segundo' : 'Voz no disponible en este navegador. Puedes escribir.';
+        status.textContent = detail.supported ? 'Listo para escribir o dictar.' : 'Voz no disponible en este navegador. Puedes escribir.';
       }
     },
     onError(error) { append('error', error.message); },

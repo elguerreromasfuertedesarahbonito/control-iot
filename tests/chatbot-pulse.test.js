@@ -36,18 +36,20 @@ class Timers {
 
 function fixture({ accept = true, manual } = {}) {
   const calls = [];
-  const api = { manual(id) {
+  const durations = [];
+  const api = { manual(id, { durationMs } = {}) {
     calls.push(id);
+    durations.push(durationMs);
     return manual ? manual(id) : Promise.resolve({ id_evento: `event-${calls.length}` });
   } };
   const coordinator = new ControlCoordinator(api);
   coordinator.configure({ directions: { stop: halt }, byId: new Map([travel, tool, halt].map(command => [command.id_comando, command])) });
   coordinator.setReady(accept);
-  const input = new ManualInput({ move: command => coordinator.move(command), stop: () => { void coordinator.stop(); } });
+  const input = new ManualInput({ move: (command, options) => coordinator.move(command, options), stop: () => { void coordinator.stop(); } });
   const timers = new Timers();
   const pulse = new AssistantPulse(input, coordinator, { setTimer: timers.set, clearTimer: timers.clear });
   input.register('joystick', () => {});
-  return { pulse, input, coordinator, timers, calls };
+  return { pulse, input, coordinator, timers, calls, durations };
 }
 
 test('un pulso dura hasta 1000 ms y su liberación envía un solo STOP de catálogo', async () => {
@@ -58,16 +60,63 @@ test('un pulso dura hasta 1000 ms y su liberación envía un solo STOP de catál
   f.timers.advance(1);
   assert.deepEqual(await task, { interrupted: false, stopped: true });
   assert.deepEqual(f.calls, [42, 9]);
+  assert.deepEqual(f.durations, [undefined, undefined]);
   assert.equal(f.input.owner, null);
   assert.equal(f.coordinator.mode, 'idle');
   assert.equal(f.timers.jobs.size, 0);
   f.pulse.destroy();
 });
 
-test('duraciones fuera de 1–1000 ms se rechazan antes de mover o adquirir propiedad', () => {
+test('duraciones fuera de 1–10000 ms se rechazan antes de mover o adquirir propiedad', () => {
   const f = fixture();
-  for (const duration of [0, -1, 1001, 1.5, NaN, '1000']) assert.throws(() => f.pulse.start(travel, duration), /máximo un segundo/);
+  for (const duration of [0, -1, 10001, 1.5, NaN, '1000']) assert.throws(() => f.pulse.start(travel, duration), /máximo diez segundos/);
   assert.deepEqual(f.calls, []); assert.equal(f.input.owner, null); assert.equal(f.timers.jobs.size, 0);
+  f.pulse.destroy();
+});
+
+test('la orden extendida envía una duración y su vencimiento visual nunca emite STOP', async () => {
+  const accepted = deferred();
+  const f = fixture({ manual: () => accepted.promise });
+  const task = f.pulse.start(travel, 10000);
+  f.timers.advance(12000);
+  assert.deepEqual(f.calls, [42]);
+  assert.deepEqual(f.durations, [10000]);
+  assert.equal(f.timers.jobs.size, 0, 'el plazo visual espera la aceptación HTTP');
+  accepted.resolve({ id_evento: 'initial' });
+  await flush();
+  f.timers.advance(9999);
+  assert.equal(f.coordinator.mode, 'manual');
+  // Otra sesión publica otro comando. Este cliente no debe cortarlo al vencer su temporizador.
+  f.coordinator.observe({ tipo: 'estado', origen: 'MANUAL', id_evento: 'other-session' });
+  f.timers.advance(1);
+  assert.deepEqual(await task, { interrupted: false, timed: true });
+  assert.deepEqual(f.calls, [42]);
+  assert.equal(f.input.owner, null);
+  assert.equal(f.coordinator.mode, 'idle');
+  f.pulse.destroy();
+});
+
+test('DETENER cancela la orden extendida, sin repetir STOP cuando vence el plazo', async () => {
+  const f = fixture();
+  const task = f.pulse.start(travel, 5000);
+  await flush();
+  const timer = f.pulse.timer;
+  await f.pulse.stop();
+  assert.deepEqual(await task, { interrupted: true });
+  await f.timers.callbacks.get(timer)();
+  assert.deepEqual(f.calls, [42, 9]);
+  assert.deepEqual(f.durations, [5000, undefined]);
+  f.pulse.destroy();
+});
+
+test('la API puede rechazar una orden extendida sin que se instale un temporizador', async () => {
+  const f = fixture({ manual: () => Promise.reject(new Error('Duración extendida deshabilitada.')) });
+  const result = await f.pulse.start(travel, 5000);
+  assert.match(result.error, /Duración extendida deshabilitada/);
+  assert.equal(f.timers.jobs.size, 0);
+  assert.equal(f.input.owner, null);
+  assert.equal(f.coordinator.mode, 'uncertain');
+  assert.deepEqual(f.calls, [42]);
   f.pulse.destroy();
 });
 

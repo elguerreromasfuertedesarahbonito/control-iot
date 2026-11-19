@@ -42,11 +42,11 @@ export class ControlCoordinator {
     return promise;
   }
 
-  move(command) {
+  move(command, { durationMs, onResult } = {}) {
     if (!this.ready || !command || !this.catalog?.byId.has(command.id_comando)
       || ['stopping', 'uncertain', 'demo-starting', 'demo'].includes(this.mode)) return false;
     const epoch = ++this.epoch;
-    this.pending = { command, epoch };
+    this.pending = { command, epoch, durationMs, onResult };
     this.mode = 'manual';
     this.begin(command.nombre);
     this.message = 'Movimiento solicitado. Esperando respuesta de la API.';
@@ -55,26 +55,37 @@ export class ControlCoordinator {
     return true;
   }
 
+  finishTimedMove(epoch) {
+    if (this.mode !== 'manual' || this.epoch !== epoch) return false;
+    this.mode = 'idle';
+    this.message = 'Transcurrió el plazo estimado de la orden. Verifica el movimiento en el dispositivo.';
+    this.emit();
+    return true;
+  }
+
   async drain() {
     if (this.running) return;
     this.running = true;
     try {
       while (this.pending && this.mode === 'manual') {
-        const { command, epoch } = this.pending;
+        const { command, epoch, durationMs, onResult } = this.pending;
         this.pending = null;
         try {
-          const response = await this.track(this.api.manual(command.id_comando));
+          const options = durationMs === undefined ? undefined : { durationMs };
+          const response = await this.track(this.api.manual(command.id_comando, options));
           this.accept(response, epoch);
           if (epoch === this.epoch) {
             this.message = 'Aceptado por la API. Esto no confirma movimiento fisico.';
             this.emit();
           }
+          onResult?.(epoch);
         } catch (error) {
           if (epoch === this.epoch) {
             this.mode = 'uncertain';
             this.message = `${error.message} Usa DETENER para solicitar una parada.`;
             this.emit();
           }
+          onResult?.(epoch, error);
         }
       }
     } finally { this.running = false; }

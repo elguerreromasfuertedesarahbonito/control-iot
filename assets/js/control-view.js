@@ -29,7 +29,7 @@ const feedback = text => {
 };
 const coordinator = new ControlCoordinator(api, { onChange: render });
 const manualInput = new ManualInput({
-  move: command => coordinator.move(command),
+  move: (command, options) => coordinator.move(command, options),
   stop: () => { void coordinator.stop(); },
 });
 const assistantPulse = new AssistantPulse(manualInput, coordinator);
@@ -307,6 +307,11 @@ return {
       if (!command || command === catalog.directions.stop) throw new Error('El movimiento no pertenece al catálogo activo.');
       const result = await assistantPulse.start(command, action.duracion_ms);
       if (result.interrupted) return 'Pulsación interrumpida por otro control o por DETENER.';
+      if (result.error) throw new Error(result.error);
+      if (result.timed) {
+        const seconds = new Intl.NumberFormat('es-MX').format(action.duracion_ms / 1000);
+        return `${command.nombre.replaceAll('_', ' ')}: la API aceptó la orden de ${seconds} s. El dispositivo controla la duración.`;
+      }
       if (!result.stopped) throw new Error('No se confirmó la parada. Usa DETENER y comprueba la API.');
       return `${command.nombre.replaceAll('_', ' ')}: pulsación de ${action.duracion_ms} ms finalizada y DETENER aceptado por la API. No confirma movimiento físico.`;
     }

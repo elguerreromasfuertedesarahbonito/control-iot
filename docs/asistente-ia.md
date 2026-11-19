@@ -2,7 +2,7 @@
 
 El asistente añade una conversación sobre las funciones existentes de Terra. El texto reconocido o escrito se interpreta en el backend; una respuesta estructurada se valida antes de utilizar el coordinador de CONTROL o consultar los recursos de MONITOREO. El navegador no recibe la clave del proveedor de IA y no ejecuta código, SQL ni direcciones arbitrarias propuestos por el modelo.
 
-Esta guía acompaña la implementación local del **18 de noviembre de 2026**. El asistente está preparado y verificado localmente; **todavía no está instalado en la API pública de EC2 ni se han publicado estos cambios del frontend en GitHub Pages**.
+La tabla siguiente corresponde a la primera validación local del asistente, el **18 de noviembre de 2026**. La ampliación de duración por voz se documenta en las secciones de uso y despliegue.
 
 | Comprobación de esta actualización | Resultado y alcance |
 | --- | --- |
@@ -31,6 +31,7 @@ Para instalar la corrección sobre una instalación que ya usa el chatbot, copia
 Ejemplos de intención, sujetos al catálogo real:
 
 - «Avanza un segundo» o «sube el brazo» para solicitar un movimiento admitido.
+- Por voz, «avanza durante cinco segundos» para pedir una duración explícita de hasta diez segundos en un vehículo habilitado.
 - «Detén la excavadora» para solicitar la parada prioritaria.
 - «¿Qué comandos hay?» o «¿Cuál es el último estado?» para consultar la información disponible.
 - «Ejecuta la demo 1» para solicitar una DEMO existente.
@@ -77,7 +78,7 @@ La salida solicitada a Gemini utiliza un esquema plano compatible con el proveed
 
 ### Interpretación
 
-`POST /asistente/interpretar` recibe un mensaje y un UUID de solicitud:
+`POST /asistente/interpretar` recibe un mensaje y un UUID de solicitud. Para una transcripción de voz, el frontend añade `"entrada": "voz"`.
 
 ```json
 {
@@ -91,7 +92,7 @@ El mensaje admite entre 1 y 2000 caracteres. La respuesta conserva `request_id`,
 
 | `accion.tipo` | Datos y efecto autorizado |
 | --- | --- |
-| `comando` | `id_comando` real y `duracion_ms`, entre 1 y **1000 ms**, predeterminado 1000. Conserva el límite manual de RN10. |
+| `comando` | `id_comando` real y `duracion_ms`. El valor predeterminado es 1000 ms. La voz permite hasta 10 000 ms con una duración explícita y un vehículo habilitado. |
 | `detener` | ID real de DETENER; utiliza la parada prioritaria. |
 | `demo` | `id_demo` real; solicita la ejecución mediante el coordinador. |
 | `estado`, `historial`, `catalogo` | Consulta el recurso correspondiente del vehículo. |
@@ -141,12 +142,12 @@ El `request_id` permite deduplicar la misma solicitud dentro de la retención de
 El asistente no controla las salidas directamente. Una intención válida se entrega al mismo coordinador que usan joysticks y botones:
 
 - Solo puede quedar activa una función lógica admitida del catálogo.
-- El pulso manual tiene un máximo de **1000 ms**, que también es el predeterminado; al terminar se solicita DETENER. El asistente no puede extender ese límite. Las DEMO conservan las duraciones de sus pasos definidas por el backend.
+- Las órdenes del asistente sin duración conservan el pulso de **1000 ms**. Para una orden de voz extendida, la API envía `duracion_ms` en el evento WSS y el ESP8266 libera las salidas al vencer su temporizador local. Las DEMO usan las duraciones de sus pasos.
 - Una orden nueva, una cancelación y la parada deben respetar la exclusión y la propiedad de la entrada manual.
 - **DETENER y Escape tienen prioridad** sobre la conversación, una respuesta del modelo pendiente o una transcripción tardía.
 - Una respuesta antigua no puede iniciar otra acción después de detener, cerrar o invalidar esa interacción.
 
-El firmware conserva además su límite local de un segundo y el intervalo de liberación ya implementado. Los límites del navegador y del ESP8266 son mecanismos separados; una solicitud HTTP o una conversación no confirma el comportamiento eléctrico del montaje.
+El temporizador del ESP8266 empieza cuando aplica la salida y conserva el intervalo de liberación entre órdenes. Para una orden extendida, la espera visual del navegador empieza con la aceptación HTTP y su vencimiento solo actualiza la interfaz. La aceptación HTTP confirma que la API recibió y procesó la solicitud. La ejecución física requiere una comprobación en la placa.
 
 Abortar una petición del navegador no revierte una operación ya aceptada por FastAPI. Si el estado de una orden queda incierto, el panel debe indicar esa incertidumbre y permitir la parada; no declarar «cancelado» únicamente porque se canceló Fetch.
 
@@ -210,6 +211,13 @@ El proveedor interpreta datos de catálogo y mensajes, pero el backend debe vali
 
 La instalación y el reinicio no prueban por sí mismos la integración con el proveedor. La clave ausente, un modelo no disponible, una cuota agotada o un timeout deben producir un error comprensible y no una acción de movimiento o una mutación inventada.
 
+### Habilitar hasta diez segundos por voz
+
+1. Actualiza primero FastAPI y conserva `ASSISTANT_TIMED_VEHICLE_IDS=` en el entorno del servidor. Después publica el frontend.
+2. Cuando tengas la placa, reemplaza las cabeceras actualizadas junto a `ExcavadoraWiFi.ino`. Compila y carga el sketch con la configuración que ya usas para la NodeMCU ESP8266. Comprueba primero el botón DETENER con la excavadora inmovilizada.
+3. En la configuración privada de EC2, establece `ASSISTANT_TIMED_VEHICLE_IDS=1` para el vehículo 1 y reinicia FastAPI. Dicta «avanza durante dos segundos» y comprueba la liberación. Después verifica diez segundos y una parada anticipada con DETENER.
+4. Para deshabilitar la ampliación, deja el valor vacío y reinicia FastAPI.
+
 ## Integración local sin modificar las URLs públicas
 
 Para utilizar expresamente el backend local que ya esté ejecutándose en el puerto 8001, abrir:
@@ -233,7 +241,8 @@ Crear un comando en RDS **no añade su función física al firmware**. El catál
 | Orden de texto conocida | Una acción validada; misma coordinación de CONTROL, sin repetir el POST por texto provisional. |
 | Solicitud ambigua o función inexistente | Petición de precisión o rechazo; ninguna orden inventada. |
 | Respuesta lenta y DETENER/Escape | Parada prioritaria; la respuesta tardía no vuelve a activar el vehículo. |
-| Pulso manual | Liberación al límite configurado; no queda activo por continuar la conversación. |
+| Pulso de voz extendido | Las órdenes de 5 y 10 segundos liberan la salida localmente. Una solicitud de 11 segundos se rechaza. DETENER puede interrumpirlas. |
+| Vehículo sin firmware habilitado | Las solicitudes de más de un segundo se rechazan y las órdenes habituales siguen disponibles. |
 | Transcripción final repetida | Una sola intención de ese gesto; no se duplica por eventos de voz. |
 | Permiso denegado o navegador sin voz | Mensaje claro y alternativa de texto funcional. |
 | Crear/eliminar sin clave o sin confirmación | No se ejecuta la mutación. |
@@ -242,7 +251,7 @@ Crear un comando en RDS **no añade su función física al firmware**. El catál
 | Clave ausente, cuota o proveedor caído | Error acotado, sin secretos expuestos ni acción alternativa inventada. |
 | Catálogo actualizado | UI resincronizada; ninguna promesa de soporte físico automático. |
 
-Los resultados automatizados y de navegador indicados al inicio cubren el software local; la tabla describe también los comportamientos que deben conservarse al completar el despliegue. La consulta canónica «estado» respondió por HTTP con el estado real de RDS en la API local; su respuesta está en `artifacts/chatbot-live-reading.json`. La validación de un movimiento generado por Gemini se hizo sin ejecutarlo y con un catálogo aislado. Las pruebas de lenguaje libre con el catálogo real también observaron errores 503 y timeout del proveedor; no se presentan como una integración remota estable. La API pública sigue pendiente de actualizarse con estas rutas. No se han comprobado voz con micrófono real, teléfono físico ni movimiento de la excavadora en esta actualización.
+Los resultados automatizados y de navegador indicados al inicio corresponden a la primera validación local. La consulta canónica «estado» respondió por HTTP con el estado real de RDS en la API local. Su respuesta está en `artifacts/chatbot-live-reading.json`. Gemini se probó con un catálogo aislado. Con el catálogo real se observaron errores 503 y timeout del proveedor. La duración extendida se comprobó localmente con datos de prueba. La verificación con micrófono, firmware cargado y hardware queda pendiente para esta ampliación.
 
 ## Referencias técnicas
 
@@ -252,7 +261,7 @@ Los resultados automatizados y de navegador indicados al inicio cubren el softwa
 - [SpeechRecognition en MDN](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition): compatibilidad y funcionamiento de la entrada de voz del navegador.
 
 
-## Cierre de la implementación
+## Resultados de la primera implementación
 
 - Frontend: **132/132 pruebas aprobadas**. Backend: **57/57**, incluidas las comprobaciones de espera de lecturas bloqueadas. Los transportes, micrófonos y escrituras de estas suites son dobles de prueba.
 - El backend es híbrido: las frases exactas «avanza», «retrocede», «abre pala», «estado», «catálogo», «historial» y «ejecuta demo 1» se resuelven contra el catálogo actual sin esperar al proveedor. No se interpretan por coincidencias parciales. Las peticiones libres y las propuestas administrativas usan Gemini.

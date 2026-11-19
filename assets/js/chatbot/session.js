@@ -22,7 +22,7 @@ export class ChatSession {
     this.setBusy(false);
   }
 
-  async submit(value) {
+  async submit(value, { entrada } = {}) {
     const message = value.trim();
     if (!message || message.length > 1000) return false;
     const stop = isStopMessage(message);
@@ -41,7 +41,9 @@ export class ChatSession {
         if (generation === this.generation) this.onMessage('bot', result);
         return true;
       }
-      const response = await this.api.interpret(message, this.requestId(), { signal: controller.signal });
+      const response = await this.api.interpret(message, this.requestId(), {
+        signal: controller.signal, ...(entrada === 'voz' ? { entrada } : {}),
+      });
       if (generation !== this.generation) return false;
       if (response.confirmacion) {
         if (!['crear_comando', 'eliminar_comando'].includes(response.accion.tipo)) throw new Error('La confirmación recibida no corresponde a un cambio de catálogo.');

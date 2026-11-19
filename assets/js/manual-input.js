@@ -14,17 +14,17 @@ export class ManualInput {
     this.resets.delete(source);
   }
 
-  request(source, command) {
-    if (!command || this.move(command) !== true) return false;
+  request(source, command, options) {
+    if (!command || this.move(command, options) !== true) return false;
     this.owner = source;
     for (const [other, reset] of this.resets) if (other !== source) reset();
     return true;
   }
 
-  release(source) {
+  release(source, { stop = true } = {}) {
     if (this.owner !== source) return false;
     this.owner = null;
-    this.stop();
+    if (stop) this.stop();
     return true;
   }
 

@@ -191,7 +191,7 @@
         <button id="chat-close" class="chat-close" type="button" aria-label="Cerrar asistente">×</button>
       </header>
       <ol id="chat-messages" class="chat-messages" role="log" aria-label="Conversación con el asistente" aria-live="polite" aria-relevant="additions">
-        <li class="chat-message chat-message--bot"><span class="chat-message-author">Terra AI</span><p>¿Qué hacemos hoy? Puedes decir «avanza», «abre la pala» o «ejecuta la demo 1».</p><p>Los movimientos se envían directamente y duran hasta 1 segundo. Para crear o eliminar comandos te pediré confirmación y clave de administración.</p></li>
+        <li class="chat-message chat-message--bot"><span class="chat-message-author">Terra AI</span><p>¿Qué hacemos hoy? Puedes decir «avanza», «abre la pala» o «ejecuta la demo 1».</p><p>Los movimientos duran un segundo por defecto. Si tu vehículo tiene habilitada la duración extendida, puedes decir «avanza durante cinco segundos». El máximo es de diez segundos.</p><p>Para crear o eliminar comandos te pediré confirmación y clave de administración.</p></li>
       </ol>
       <form id="chat-confirmation" class="chat-confirmation" hidden>
         <strong>Confirmar cambio de catálogo</strong><p id="chat-confirm-summary"></p>
@@ -204,7 +204,7 @@
           <button id="chat-mic" class="chat-mic" type="button" aria-label="Dictar petición. Toca para iniciar o terminar; mantén pulsado para escuchar hasta soltar" aria-pressed="false" aria-describedby="chat-voice-help"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8.5" y="3" width="7" height="12" rx="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11v1a6.5 6.5 0 0 0 13 0v-1M12 18.5V22m-4 0h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
           <button id="chat-send" class="chat-send" type="submit" aria-label="Enviar petición"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7-8-1Zm8 1 8-9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
         </div>
-        <p id="chat-status" class="chat-status" role="status">Listo · movimientos de hasta 1 segundo</p>
+        <p id="chat-status" class="chat-status" role="status">Listo para escribir o dictar.</p>
         <p id="chat-voice-help" class="chat-voice-help">Voz: toca para alternar o mantén y suelta. El reconocimiento puede usar el servicio de voz del navegador.</p>
       </form>
     </dialog>

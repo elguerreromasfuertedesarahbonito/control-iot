@@ -2,9 +2,9 @@
 
 ## Asistente de texto y voz
 
-La ampliación del 18/11/2026 incorpora **Terra AI** en un cuadro superpuesto, con voz por toque o pulsación sostenida. Reutiliza CONTROL para enviar movimientos de hasta un segundo, DETENER y DEMO, sin confirmar órdenes normales. Crear o eliminar comandos requiere confirmación y `X-Admin-Key`; la clave de Gemini permanece exclusivamente en el backend. La [guía del asistente](docs/asistente-ia.md) incluye archivos, configuración, límites y resultados de pruebas.
+**Terra AI** permite usar CONTROL por texto o por voz, mediante toque o pulsación sostenida. Los movimientos del asistente duran un segundo por defecto. Una orden de voz con duración explícita puede llegar a diez segundos una vez actualizado el firmware y habilitado el vehículo en FastAPI. Crear o eliminar comandos requiere confirmación y `X-Admin-Key`. La clave de Gemini permanece en el backend. La [guía del asistente](docs/asistente-ia.md) explica el uso y la activación.
 
-Esta ampliación está en los archivos locales. Su activación pública requiere actualizar la API de EC2 con las rutas `/asistente/interpretar` y `/asistente/confirmar`, reiniciarla y publicar las fuentes del frontend. La versión publicada de CONTROL/MONITOREO y sus evidencias anteriores se describen abajo. Las pruebas de esta ampliación no envían órdenes físicas ni modifican el catálogo real.
+La ampliación de duración por voz está en los archivos locales. Para publicarla, actualiza primero FastAPI en EC2, luego publica el frontend en el mismo GitHub Pages. Habilita la duración extendida para el vehículo después de cargar el firmware compatible.
 
 Frontend de la excavadora para la actividad práctica 4.1, con vistas **CONTROL** y **MONITOREO**. HTML semántico, CSS, Bootstrap local y módulos JavaScript nativos; reutiliza la API FastAPI existente y no incorpora otro backend.
 
