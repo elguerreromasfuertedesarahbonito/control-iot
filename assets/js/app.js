@@ -6,6 +6,7 @@ import { Connectivity } from './connectivity.js';
 import { createNavigation } from './navigation.js';
 import { MonitorModel } from './monitoring/monitor.js';
 import { createMonitorView } from './monitoring/view.js';
+import { createChatbot } from './chatbot/view.js';
 
 const simulation = new URLSearchParams(location.search).get('simulation') === '1';
 const mock = simulation ? (await import('./simulation.js')).createSimulation(CONFIG) : null;
@@ -44,6 +45,7 @@ const navigation = createNavigation({ onChange(name) {
   void monitor.setActive(name === 'monitoreo');
 } });
 document.getElementById('monitor-refresh').addEventListener('click', () => { void monitor.refresh(); });
+const chatbot = createChatbot({ api, control, enabled: !simulation });
 view.render(monitor.snapshot());
 void connectivity.refresh();
 void control.connect();
@@ -53,6 +55,7 @@ window.addEventListener('pagehide', () => {
   monitor.destroy();
   socket.disconnect();
   view.destroy();
+  chatbot.destroy();
   mock?.dispose();
 });
 // BFCache puede restaurar el DOM después de liberar sus conexiones y listeners.

@@ -2,13 +2,14 @@
 <html lang="es">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#142c2a">
     <meta name="description" content="Control y monitoreo IoT de una excavadora, con dos joysticks, parada prioritaria y movimientos persistidos.">
     <title>Terra · Control IoT</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
     <link rel="stylesheet" href="./assets/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="./assets/css/styles.css">
+    <link rel="stylesheet" href="./assets/css/chatbot.css">
   </head>
   <body>
     <a class="skip-link" href="#main-content">Ir al contenido</a>
@@ -180,6 +181,32 @@
         <section class="details-section" aria-labelledby="auxiliary-title"><h3 id="auxiliary-title">Funciones adicionales</h3><p>Movimientos adicionales disponibles en el catálogo del vehículo. Mantén pulsado para accionar.</p><div id="auxiliary-controls" class="auxiliary-controls" role="group" aria-label="Funciones adicionales del vehículo"></div></section>
       </div>
       <button id="details-stop" class="stop-button details-stop" type="button"><span class="stop-symbol" aria-hidden="true"></span><span>DETENER</span></button>
+    </dialog>
+    <button id="open-chat" class="chat-launcher" type="button" aria-label="Abrir asistente Terra AI" aria-haspopup="dialog" aria-controls="chat-dialog" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-6 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8"/><path d="m12 7 1.3 3.7L17 12l-3.7 1.3L12 17l-1.3-3.7L7 12l3.7-1.3L12 7Z" fill="currentColor"/></svg><span>AI</span></button>
+    <dialog id="chat-dialog" class="chat-dialog" aria-labelledby="chat-title" aria-describedby="chat-description">
+      <header class="chat-header">
+        <div class="chat-avatar" aria-hidden="true">T</div>
+        <div class="chat-heading"><h2 id="chat-title">Terra <span>AI</span></h2><p id="chat-description">Tu asistente de control</p></div>
+        <button id="chat-stop" class="chat-stop" type="button" aria-label="Detener vehículo y cancelar petición del asistente"><span class="stop-symbol" aria-hidden="true"></span>DETENER</button>
+        <button id="chat-close" class="chat-close" type="button" aria-label="Cerrar asistente">×</button>
+      </header>
+      <ol id="chat-messages" class="chat-messages" role="log" aria-label="Conversación con el asistente" aria-live="polite" aria-relevant="additions">
+        <li class="chat-message chat-message--bot"><span class="chat-message-author">Terra AI</span><p>¿Qué hacemos hoy? Puedes decir «avanza», «abre la pala» o «ejecuta la demo 1».</p><p>Los movimientos se envían directamente y duran hasta 1 segundo. Para crear o eliminar comandos te pediré confirmación y clave de administración.</p></li>
+      </ol>
+      <form id="chat-confirmation" class="chat-confirmation" hidden>
+        <strong>Confirmar cambio de catálogo</strong><p id="chat-confirm-summary"></p>
+        <label for="chat-admin-key">Clave de administración</label><input id="chat-admin-key" type="password" autocomplete="off" spellcheck="false" maxlength="256" required>
+        <div class="chat-confirm-actions"><button id="chat-cancel-confirm" type="button">Cancelar</button><button id="chat-confirm" type="submit">Confirmar cambio</button></div>
+      </form>
+      <form id="chat-form" class="chat-form" aria-label="Enviar petición al asistente">
+        <label class="visually-hidden" for="chat-input">Escribe una petición</label>
+        <div class="chat-composer"><textarea id="chat-input" rows="2" maxlength="1000" placeholder="Escribe o usa tu voz…" enterkeyhint="send"></textarea>
+          <button id="chat-mic" class="chat-mic" type="button" aria-label="Dictar petición. Toca para iniciar o terminar; mantén pulsado para escuchar hasta soltar" aria-pressed="false" aria-describedby="chat-voice-help"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8.5" y="3" width="7" height="12" rx="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11v1a6.5 6.5 0 0 0 13 0v-1M12 18.5V22m-4 0h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+          <button id="chat-send" class="chat-send" type="submit" aria-label="Enviar petición"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7-8-1Zm8 1 8-9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+        </div>
+        <p id="chat-status" class="chat-status" role="status">Listo · movimientos de hasta 1 segundo</p>
+        <p id="chat-voice-help" class="chat-voice-help">Voz: toca para alternar o mantén y suelta. El reconocimiento puede usar el servicio de voz del navegador.</p>
+      </form>
     </dialog>
     <script type="module" src="./assets/js/app.js"></script>
   </body>

@@ -1,4 +1,5 @@
 import { isStateResponse, isHistoryResponse } from './monitoring-validation.js';
+import { isAssistantResponse } from './chatbot/contracts.js';
 
 /** Contrato HTTP de la API existente. No reintenta órdenes POST. */
 export class ApiError extends Error {
@@ -50,7 +51,7 @@ function serverDetail(body) {
 
 /** Construir el cliente no abre conexiones; cada método devuelve una promesa. */
 export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
-  async function request(path, { method = "GET", body, signal, validate = object } = {}) {
+  async function request(path, { method = "GET", body, signal, validate = object, timeoutMs, adminKey } = {}) {
     const url = apiUrl(config, path);
     if (typeof fetchImpl !== "function") {
       throw new ApiError("Este navegador no permite realizar peticiones HTTP.", { kind: "config" });
@@ -59,7 +60,7 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
       throw new ApiError("La petición fue cancelada.", { kind: "aborted" });
     }
     const controller = new AbortController();
-    const duration = positiveId(config.requestTimeoutMs) ? config.requestTimeoutMs : 8000;
+    const duration = positiveId(timeoutMs) ? timeoutMs : positiveId(config.requestTimeoutMs) ? config.requestTimeoutMs : 8000;
     let timedOut = false;
     const cancel = () => controller.abort();
     signal?.addEventListener("abort", cancel, { once: true });
@@ -70,6 +71,7 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
     try {
       const headers = { Accept: "application/json" };
       if (body !== undefined) headers["Content-Type"] = "application/json";
+      if (adminKey !== undefined) headers['X-Admin-Key'] = adminKey;
       const response = await fetchImpl(url, {
         method, headers, signal: controller.signal, credentials: "omit", cache: "no-store",
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -129,6 +131,21 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
     async history({ signal } = {}) {
       // El procedimiento real no acepta límite ni orden: se normaliza después de leer.
       return request(`/historial/${vehicleId()}`, { signal, validate: isHistoryResponse });
+    },
+    async interpret(message, requestId, { signal } = {}) {
+      return request('/asistente/interpretar', {
+        method: 'POST', signal, timeoutMs: config.assistantTimeoutMs ?? 35000,
+        body: { id_vehiculo: vehicleId(), mensaje: message, request_id: requestId },
+        validate: value => isAssistantResponse(value) && value.request_id === requestId,
+      });
+    },
+    async confirmAssistant(token, requestId, adminKey, { signal } = {}) {
+      return request('/asistente/confirmar', {
+        method: 'POST', signal, adminKey,
+        body: { token, request_id: requestId },
+        validate: value => isAssistantResponse(value) && value.request_id === requestId
+          && ['crear_comando', 'eliminar_comando'].includes(value.accion.tipo) && !value.confirmacion,
+      });
     },
     async vehicle() {
       const id = vehicleId();

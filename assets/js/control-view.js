@@ -2,6 +2,7 @@ import { buildCatalog } from './catalog.js';
 import { ControlCoordinator } from './coordinator.js';
 import { VirtualJoystick } from './joystick.js';
 import { ManualInput } from './manual-input.js';
+import { AssistantPulse } from './chatbot/pulse.js';
 
 export function createControlView({ config, api, simulation = false, selectRoom, disconnectRoom, onReconnect, onVehicle = () => {} }) {
 const CONFIG = config;
@@ -31,6 +32,10 @@ const manualInput = new ManualInput({
   move: command => coordinator.move(command),
   stop: () => { void coordinator.stop(); },
 });
+const assistantPulse = new AssistantPulse(manualInput, coordinator);
+const socketWaiters = new Set();
+let assistantGeneration = 0;
+let assistantDemoEpoch = null;
 const joystick = createJoystick('drive', 'directions', 'joystick', 'joystick-stick', 'joystick-label');
 const toolJoystick = createJoystick('tool', 'tools', 'tool-joystick', 'tool-joystick-stick', 'tool-joystick-label');
 
@@ -275,9 +280,59 @@ $('reconnect-button').addEventListener('click', () => { void onReconnect(); });
 return {
   connect,
   onSocketStatus,
-  onReady() { socketReady = true; updateReady(); },
+  onReady() { socketReady = true; updateReady(); for (const ready of socketWaiters) ready(); },
   observe(event) { coordinator.observe(event); },
   setApiStatus(available, error = '') { apiAvailable = available; apiError = error; updateReady(); },
+  version() { return coordinator.epoch; },
+  prepareAssistant() { releaseManualControl(); },
+  async stopAssistant() {
+    ++assistantGeneration;
+    if (assistantDemoEpoch !== null && assistantDemoEpoch === coordinator.epoch) { neutral(); await coordinator.stop(); }
+    await assistantPulse.stop();
+  },
+  async executeAssistant(action, { expectedEpoch, signal } = {}) {
+    const generation = ++assistantGeneration;
+    const checkCurrent = () => {
+      if (signal?.aborted || generation !== assistantGeneration) throw new Error('Petición del asistente cancelada.');
+      if (expectedEpoch !== undefined && coordinator.epoch !== expectedEpoch) throw new Error('Otro control intervino mientras se interpretaba la petición. Envía una solicitud nueva.');
+    };
+    if (action.tipo === 'detener') {
+      neutral(); await coordinator.stop();
+      if (coordinator.mode !== 'idle') throw new Error(coordinator.message);
+      return 'DETENER aceptado por la API. La ejecución física requiere verificación del dispositivo.';
+    }
+    checkCurrent();
+    if (action.tipo === 'comando') {
+      const command = catalog?.byId.get(action.id_comando);
+      if (!command || command === catalog.directions.stop) throw new Error('El movimiento no pertenece al catálogo activo.');
+      const result = await assistantPulse.start(command, action.duracion_ms);
+      if (result.interrupted) return 'Pulsación interrumpida por otro control o por DETENER.';
+      if (!result.stopped) throw new Error('No se confirmó la parada. Usa DETENER y comprueba la API.');
+      return `${command.nombre.replaceAll('_', ' ')}: pulsación de ${action.duracion_ms} ms finalizada y DETENER aceptado por la API. No confirma movimiento físico.`;
+    }
+    if (action.tipo === 'demo') {
+      if (!demos.some(item => item.id_demo === action.id_demo)) throw new Error('La DEMO no pertenece al vehículo activo.');
+      if (coordinator.mode !== 'idle') throw new Error('Hay una acción en curso. Solicita DETENER antes de iniciar otra DEMO.');
+      if (selectedDemo !== action.id_demo) {
+        $('demo-select').value = String(action.id_demo);
+        await selectDemo();
+      }
+      checkCurrent();
+      if (!socketReady) await new Promise((resolve, reject) => {
+        const ready = () => { clearTimeout(timer); socketWaiters.delete(ready); resolve(); };
+        const timer = setTimeout(() => { socketWaiters.delete(ready); reject(new Error('No se confirmó la sesión WSS de la DEMO.')); }, CONFIG.requestTimeoutMs);
+        socketWaiters.add(ready);
+      });
+      checkCurrent();
+      if (!readyForDemo) throw new Error('La definición de DEMO no está disponible.');
+      const operation = coordinator.startDemo(action.id_demo);
+      assistantDemoEpoch = coordinator.epoch;
+      try { if (!await operation) throw new Error(coordinator.message); }
+      finally { assistantDemoEpoch = null; }
+      return 'DEMO aceptada por la API. Los pasos y su finalización se observan por WSS.';
+    }
+    throw new Error('Esta acción no es una orden de control admitida.');
+  },
   setActive(value) {
     if (!value && active) releaseManualControl();
     active = Boolean(value);

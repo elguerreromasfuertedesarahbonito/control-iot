@@ -1,5 +1,11 @@
 # Terra · Control y Monitoreo IoT
 
+## Asistente de texto y voz
+
+La ampliación del 18/11/2026 incorpora **Terra AI** en un cuadro superpuesto, con voz por toque o pulsación sostenida. Reutiliza CONTROL para enviar movimientos de hasta un segundo, DETENER y DEMO, sin confirmar órdenes normales. Crear o eliminar comandos requiere confirmación y `X-Admin-Key`; la clave de Gemini permanece exclusivamente en el backend. La [guía del asistente](docs/asistente-ia.md) incluye archivos, configuración, límites y resultados de pruebas.
+
+Esta ampliación está en los archivos locales. Su activación pública requiere actualizar la API de EC2 con las rutas `/asistente/interpretar` y `/asistente/confirmar`, reiniciarla y publicar las fuentes del frontend. La versión publicada de CONTROL/MONITOREO y sus evidencias anteriores se describen abajo. Las pruebas de esta ampliación no envían órdenes físicas ni modifican el catálogo real.
+
 Frontend de la excavadora para la actividad práctica 4.1, con vistas **CONTROL** y **MONITOREO**. HTML semántico, CSS, Bootstrap local y módulos JavaScript nativos; reutiliza la API FastAPI existente y no incorpora otro backend.
 
 Desarrollado por **Ricardo de Jesús Serrano Cortés · 2026**.
