@@ -1,8 +1,12 @@
+// Ventana de apagado del firmware (30 ms) y pulso manual predeterminado (1000 ms).
+const ACCESSORY_PULSE_MS = 1030;
+
 /** Una sola entrada para joystick, botones, DEMO y parada prioritaria. */
 export class ControlCoordinator {
-  constructor(api, { onChange = () => {} } = {}) {
+  constructor(api, { onChange = () => {}, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
     this.api = api;
     this.onChange = onChange;
+    this.wait = wait;
     this.catalog = null;
     this.ready = false;
     this.mode = 'idle';
@@ -44,7 +48,7 @@ export class ControlCoordinator {
 
   move(command, { durationMs, onResult } = {}) {
     if (!this.ready || !command || !this.catalog?.byId.has(command.id_comando)
-      || ['stopping', 'uncertain', 'demo-starting', 'demo'].includes(this.mode)) return false;
+      || ['accessory', 'stopping', 'uncertain', 'demo-starting', 'demo'].includes(this.mode)) return false;
     const epoch = ++this.epoch;
     this.pending = { command, epoch, durationMs, onResult };
     this.mode = 'manual';
@@ -89,6 +93,35 @@ export class ControlCoordinator {
         }
       }
     } finally { this.running = false; }
+  }
+
+  async tapAccessory(command) {
+    if (!this.ready || this.mode !== 'idle' || !command ||
+        !Object.values(this.catalog?.accessories ?? {}).includes(command)) return false;
+    const epoch = ++this.epoch;
+    this.mode = 'accessory';
+    this.begin(command.nombre);
+    this.message = 'Pulso solicitado. Esperando respuesta de la API.';
+    this.emit();
+    try {
+      const response = await this.track(this.api.manual(command.id_comando));
+      if (epoch !== this.epoch || this.mode !== 'accessory') return false;
+      this.message = 'Pulso aceptado por la API. El estado del accesorio es estimado.';
+      this.accept(response, epoch);
+      // El firmware libera la salida. Aquí solo reservamos tiempo para el pulso.
+      await this.wait(ACCESSORY_PULSE_MS);
+      if (epoch !== this.epoch || this.mode !== 'accessory') return false;
+      this.mode = 'idle';
+      this.emit();
+      return this.ready;
+    } catch (error) {
+      if (epoch === this.epoch && this.mode === 'accessory') {
+        this.mode = 'uncertain';
+        this.message = `${error.message} El estado del accesorio está sin confirmar.`;
+        this.emit();
+      }
+      return false;
+    }
   }
 
   async startDemo(id) {

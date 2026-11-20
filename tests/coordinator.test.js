@@ -12,10 +12,13 @@ function deferred() {
 const forward = { id_comando: 10, nombre: 'AVANZAR' };
 const backward = { id_comando: 11, nombre: 'RETROCEDER' };
 const stopCommand = { id_comando: 99, nombre: 'DETENER' };
+const light = { id_comando: 310, codigo: 10, nombre: 'LUZ' };
+const sound = { id_comando: 311, codigo: 11, nombre: 'SONIDO' };
 const catalog = { directions: { forward, backward, stop: stopCommand },
-  byId: new Map([forward, backward, stopCommand].map(command => [command.id_comando, command])) };
+  accessories: { light, sound },
+  byId: new Map([forward, backward, stopCommand, light, sound].map(command => [command.id_comando, command])) };
 
-function fixture(overrides = {}) {
+function fixture(overrides = {}, options = {}) {
   let identity = 0;
   const calls = [];
   const api = {
@@ -26,11 +29,74 @@ function fixture(overrides = {}) {
     ...overrides,
   };
   const changes = [];
-  const coordinator = new ControlCoordinator(api, { onChange: state => changes.push(state) });
+  const coordinator = new ControlCoordinator(api, { onChange: state => changes.push(state), ...options });
   coordinator.configure(catalog);
   coordinator.setReady(true);
   return { coordinator, api, calls, changes };
 }
+
+test('each accessory tap sends one POST using its API ID and waits for the pulse without sending STOP', async () => {
+  const cooldown = deferred();
+  const { coordinator, calls } = fixture({}, { wait(ms) {
+    assert.equal(ms, 1030);
+    return cooldown.promise;
+  } });
+  assert.equal(await coordinator.tapAccessory(forward), false);
+  const first = coordinator.tapAccessory(light);
+  await tick();
+  assert.deepEqual(calls, [['manual', 310]]);
+  assert.equal(coordinator.snapshot().action.accepted, true);
+  assert.equal(await coordinator.tapAccessory(sound), false);
+  assert.equal(coordinator.move(forward), false);
+  assert.equal(await coordinator.startDemo(7), false);
+  cooldown.resolve();
+  assert.equal(await first, true);
+  assert.equal(await coordinator.tapAccessory(light), true);
+  assert.equal(await coordinator.tapAccessory(sound), true);
+  assert.deepEqual(calls, [['manual', 310], ['manual', 310], ['manual', 311]]);
+  assert.equal(coordinator.mode, 'idle');
+});
+
+test('STOP preempts an accessory request and its late confirmation cannot overwrite STOP', async () => {
+  const pulse = deferred();
+  const { coordinator, api, calls } = fixture();
+  const manual = api.manual;
+  api.manual = id => {
+    if (id === light.id_comando) { calls.push(['manual', id]); return pulse.promise; }
+    return manual(id);
+  };
+  const tapping = coordinator.tapAccessory(light);
+  const stopping = coordinator.stop();
+  assert.deepEqual(calls, [['manual', 310], ['manual', 99]]);
+  pulse.resolve({ id_evento: uuid(20) });
+  assert.equal(await tapping, false);
+  await stopping;
+  assert.deepEqual(calls, [['manual', 310], ['manual', 99], ['manual', 99]]);
+  assert.equal(coordinator.snapshot().action.name, 'DETENER');
+});
+
+test('a failed accessory tap leaves its state unconfirmed and never retries a pulse', async () => {
+  let requests = 0;
+  const { coordinator } = fixture({ manual() { ++requests; return Promise.reject(new Error('Sin conexión')); } });
+  assert.equal(await coordinator.tapAccessory(light), false);
+  assert.equal(coordinator.mode, 'uncertain');
+  assert.equal(coordinator.snapshot().action.accepted, false);
+  assert.equal(await coordinator.tapAccessory(light), false);
+  assert.equal(requests, 1);
+});
+
+test('an interrupted accessory wait cannot clear a newer joystick action', async () => {
+  const cooldown = deferred();
+  const { coordinator, calls } = fixture({}, { wait: () => cooldown.promise });
+  const tapping = coordinator.tapAccessory(light);
+  await tick();
+  await coordinator.stop();
+  assert.equal(coordinator.move(forward), true);
+  cooldown.resolve();
+  assert.equal(await tapping, false);
+  assert.equal(coordinator.mode, 'manual');
+  assert.deepEqual(calls, [['manual', 310], ['manual', 99], ['manual', 10]]);
+});
 
 test('STOP is urgent, drops queued direction, and compensates after an older POST settles', async () => {
   const old = deferred();

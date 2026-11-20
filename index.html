@@ -79,6 +79,18 @@
               </div>
             </section>
 
+            <div id="accessory-controls" class="accessory-controls" role="group" aria-label="Luz y sonido" aria-describedby="accessory-status-note">
+              <span id="accessory-status-note" class="visually-hidden">El estado de cada accesorio es estimado.</span>
+              <button type="button" class="accessory-toggle" data-accessory="light" data-state="unknown" aria-pressed="false" aria-labelledby="accessory-light-label" aria-describedby="accessory-light-status" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6m-5 3h4m-2-18a6 6 0 0 0-4 10.5c.7.6 1 1.4 1 2.5h6c0-1.1.3-1.9 1-2.5A6 6 0 0 0 12 3Z"/></svg>
+                <span id="accessory-light-label">Luz</span><span id="accessory-light-status" class="visually-hidden" data-accessory-status>Sin confirmar</span>
+              </button>
+              <button type="button" class="accessory-toggle" data-accessory="sound" data-state="unknown" aria-pressed="false" aria-labelledby="accessory-sound-label" aria-describedby="accessory-sound-status" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12 0a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg>
+                <span id="accessory-sound-label">Sonido</span><span id="accessory-sound-status" class="visually-hidden" data-accessory-status>Sin confirmar</span>
+              </button>
+            </div>
+
             <section class="control-pod tool-panel" aria-labelledby="tool-title">
               <div class="pod-heading"><h2 id="tool-title"><span>02</span> Brazo y pala</h2><span id="tool-joystick-label" class="direction-label" aria-live="polite">Neutral</span></div>
               <div class="joystick-surround">

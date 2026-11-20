@@ -441,10 +441,69 @@ p {
 
 .dual-controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) var(--accessory-width, 56px) minmax(0, 1fr);
   gap: 16px;
   min-width: 0;
   min-height: 0;
+}
+
+.accessory-controls {
+  align-self: center;
+  display: grid;
+  gap: 6px;
+}
+
+.accessory-toggle {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 5px 3px;
+  border: 1px solid #587164;
+  border-radius: 9px;
+  color: #f4f4e5;
+  background: #24443a;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.accessory-toggle svg {
+  width: 17px;
+  height: 17px;
+}
+
+.accessory-toggle::after {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #a7b8aa;
+  border-radius: 50%;
+  content: "";
+}
+
+.accessory-toggle[data-state="off"]::after {
+  background: #a7b8aa;
+}
+
+.accessory-toggle[data-state="on"] {
+  color: var(--ink);
+  border-color: var(--amber);
+  background: var(--amber);
+}
+
+.accessory-toggle[data-state="on"]::after {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.accessory-toggle[aria-busy="true"] {
+  border-style: dashed;
 }
 
 .control-pod {
@@ -1168,7 +1227,8 @@ p {
   }
 
   .dual-controls {
-    gap: 12px;
+    --accessory-width: 44px;
+    gap: 6px;
   }
 
   .pod-heading h2 {
@@ -1303,7 +1363,7 @@ p {
   }
 
   .dual-controls {
-    gap: 10px;
+    gap: 6px;
   }
 
   .control-pod {
@@ -1563,7 +1623,8 @@ p {
   }
 
   .dual-controls {
-    gap: 12px;
+    --accessory-width: 44px;
+    gap: 6px;
   }
 
   .control-pod {

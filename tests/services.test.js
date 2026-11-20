@@ -129,6 +129,22 @@ test('tool joystick resolves the four real functions and keeps extra commands av
   assert.equal(buildCatalog([], 1).tools.forward, null);
 });
 
+test('accessory codes use unique active API IDs and stay out of hold controls', () => {
+  const item = (id_comando, codigo, nombre, props = {}) => ({
+    id_comando, codigo, nombre, id_vehiculo: 1, activo: true, ...props,
+  });
+  const commands = [item(310, 10, 'LUZ'), item(311, 11, 'SONIDO'),
+    item(312, 10, 'LUZ', { id_vehiculo: 2 }), item(313, 11, 'SONIDO', { activo: false }),
+    item(314, 20, 'OTRO')];
+  const catalog = buildCatalog(commands, 1);
+  assert.equal(catalog.accessories.light.id_comando, 310);
+  assert.equal(catalog.accessories.sound.id_comando, 311);
+  assert.deepEqual(catalog.auxiliary.map(command => command.id_comando), [314]);
+  const ambiguous = buildCatalog([...commands, item(315, 10, 'LUZ')], 1);
+  assert.equal(ambiguous.accessories.light, null);
+  assert.equal(ambiguous.accessories.sound.id_comando, 311);
+});
+
 class FakeSocket {
   static instances = [];
   constructor(url) { this.url = url; this.closed = false; FakeSocket.instances.push(this); }

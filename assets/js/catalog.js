@@ -12,6 +12,7 @@ const TOOL_NAMES = new Map([
   ["ABRIR_PALA", "left"],
   ["CERRAR_PALA", "right"],
 ]);
+const ACCESSORY_CODES = new Map([[10, 'light'], [11, 'sound']]);
 
 function normalizeName(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -21,10 +22,11 @@ function normalizeName(value) {
 export function buildCatalog(commands, vehicleId) {
   const directions = { forward: null, backward: null, left: null, right: null, stop: null };
   const tools = { forward: null, backward: null, left: null, right: null };
+  const accessories = { light: null, sound: null };
   const byId = new Map();
   const duplicateIds = new Set();
   if (!Array.isArray(commands) || !Number.isSafeInteger(vehicleId) || vehicleId <= 0) {
-    return { directions, tools, auxiliary: [], byId };
+    return { directions, tools, accessories, auxiliary: [], byId };
   }
   for (const command of commands) {
     if (!command || typeof command !== "object" || Array.isArray(command) ||
@@ -40,6 +42,16 @@ export function buildCatalog(commands, vehicleId) {
   const auxiliary = [];
   const ambiguous = new Set();
   for (const command of byId.values()) {
+    const accessory = ACCESSORY_CODES.get(command.codigo);
+    if (accessory) {
+      if (accessories[accessory] || ambiguous.has(accessory)) {
+        accessories[accessory] = null;
+        ambiguous.add(accessory);
+      } else {
+        accessories[accessory] = command;
+      }
+      continue;
+    }
     const name = normalizeName(command.nombre);
     const driveDirection = DIRECTION_NAMES.get(name);
     const toolDirection = TOOL_NAMES.get(name);
@@ -56,5 +68,5 @@ export function buildCatalog(commands, vehicleId) {
     }
   }
   auxiliary.sort((a, b) => a.id_comando - b.id_comando);
-  return { directions, tools, auxiliary, byId };
+  return { directions, tools, accessories, auxiliary, byId };
 }

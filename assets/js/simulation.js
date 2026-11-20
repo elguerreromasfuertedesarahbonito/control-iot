@@ -1,7 +1,7 @@
 /** Doble de servidor exclusivamente para ?simulation=1. No abre red. */
 export function createSimulation(config) {
   const names = ['AVANZAR', 'RETROCEDER', 'GIRAR_IZQUIERDA', 'GIRAR_DERECHA',
-    'SUBIR_BRAZO', 'BAJAR_BRAZO', 'ABRIR_PALA', 'CERRAR_PALA', 'DETENER'];
+    'SUBIR_BRAZO', 'BAJAR_BRAZO', 'ABRIR_PALA', 'CERRAR_PALA', 'DETENER', 'LUZ', 'SONIDO'];
   const commands = names.map((nombre, index) => ({ id_comando: index + 1,
     id_vehiculo: config.vehicleId, codigo: index + 1, nombre, descripcion: '', activo: true }));
   const subscribers = new Set();

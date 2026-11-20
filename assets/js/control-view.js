@@ -7,6 +7,9 @@ import { AssistantPulse } from './chatbot/pulse.js';
 export function createControlView({ config, api, simulation = false, selectRoom, disconnectRoom, onReconnect, onVehicle = () => {} }) {
 const CONFIG = config;
 const $ = id => document.getElementById(id);
+const accessoryButtons = [...$('accessory-controls').querySelectorAll('[data-accessory]')];
+const accessoryStates = { light: 'unknown', sound: 'unknown' };
+let pendingAccessory = null;
 let active = true;
 let apiAvailable = false;
 let socketReady = false;
@@ -61,13 +64,14 @@ function onSocketStatus(state, detail = {}) {
   if (detail.error) socketError = detail.error.message;
   if (state === 'online') socketError = '';
   updateReady();
-  if (wasReady && state !== 'online' && ['manual', 'demo', 'demo-starting'].includes(coordinator.mode)) {
+  if (wasReady && state !== 'online' && ['manual', 'accessory', 'demo', 'demo-starting'].includes(coordinator.mode)) {
     neutral(); void coordinator.stop();
   }
 }
 
 function canMove() {
-  return active && coordinator.ready && !['demo', 'demo-starting', 'stopping', 'uncertain'].includes(coordinator.mode);
+  return active && coordinator.ready &&
+    !['accessory', 'demo', 'demo-starting', 'stopping', 'uncertain'].includes(coordinator.mode);
 }
 function updateReady() {
   coordinator.setReady(Boolean(apiAvailable && socketReady && catalog?.directions.stop));
@@ -82,6 +86,18 @@ function render(snapshot = coordinator.snapshot()) {
   }
   for (const button of $('tool-controls').querySelectorAll('button')) {
     button.disabled = !movementAllowed || !catalog?.tools[button.dataset.toolDirection];
+  }
+  for (const button of accessoryButtons) {
+    const accessory = button.dataset.accessory;
+    const state = accessoryStates[accessory];
+    const pending = pendingAccessory === accessory;
+    button.disabled = !active || !snapshot.ready || snapshot.mode !== 'idle' ||
+      pendingAccessory !== null || !catalog?.accessories[accessory];
+    button.dataset.state = state;
+    button.setAttribute('aria-pressed', String(state === 'on'));
+    button.setAttribute('aria-busy', String(pending));
+    button.querySelector('[data-accessory-status]').textContent = pending ? 'Enviando pulso'
+      : { on: 'Encendido estimado', off: 'Apagado estimado', unknown: 'Sin confirmar' }[state];
   }
   for (const button of $('auxiliary-controls').querySelectorAll('button')) button.disabled = !movementAllowed;
   const demoBusy = ['demo', 'demo-starting', 'stopping', 'uncertain'].includes(snapshot.mode);
@@ -154,6 +170,17 @@ for (const button of $('direction-controls').querySelectorAll('button')) {
 for (const button of $('tool-controls').querySelectorAll('button')) {
   bindHold(button, () => catalog?.tools[button.dataset.toolDirection], 'tool-joystick-label');
 }
+for (const button of accessoryButtons) {
+  button.addEventListener('click', async () => {
+    if (button.disabled) return;
+    const accessory = button.dataset.accessory;
+    pendingAccessory = accessory;
+    const accepted = await coordinator.tapAccessory(catalog.accessories[accessory]);
+    accessoryStates[accessory] = accepted ? (accessoryStates[accessory] === 'on' ? 'off' : 'on') : 'unknown';
+    pendingAccessory = null;
+    render();
+  });
+}
 $('stop-button').addEventListener('click', () => { neutral(); void coordinator.stop(); });
 $('global-stop').addEventListener('click', () => { neutral(); void coordinator.stop(); });
 $('details-stop').addEventListener('click', () => { neutral(); void coordinator.stop(); });
@@ -169,13 +196,13 @@ window.addEventListener('keydown', event => {
 });
 function leaveControl() {
   neutral();
-  if (['manual', 'demo', 'demo-starting'].includes(coordinator.mode)) void coordinator.stop();
+  if (['manual', 'accessory', 'demo', 'demo-starting'].includes(coordinator.mode)) void coordinator.stop();
 }
 window.addEventListener('blur', leaveControl);
 document.addEventListener('visibilitychange', () => { if (document.hidden) leaveControl(); });
 function releaseManualControl() {
   neutral();
-  if (coordinator.mode === 'manual') void coordinator.stop();
+  if (['manual', 'accessory'].includes(coordinator.mode)) void coordinator.stop();
 }
 $('open-details').addEventListener('click', () => { releaseManualControl(); $('details-dialog').showModal(); });
 $('close-details').addEventListener('click', () => { releaseManualControl(); $('details-dialog').close(); });
@@ -225,7 +252,7 @@ $('demo-select').addEventListener('change', () => { void selectDemo(); });
 async function connect() {
   if (loading) return;
   loading = true; // Bloquea también mientras se espera una parada previa.
-  if (['manual', 'demo', 'demo-starting', 'stopping'].includes(coordinator.mode)) { await coordinator.stop(); }
+  if (['manual', 'accessory', 'demo', 'demo-starting', 'stopping'].includes(coordinator.mode)) { await coordinator.stop(); }
   neutral();
   socketError = ''; apiError = ''; definitionError = '';
   loading = true; socketReady = false; coordinator.setReady(false); render();

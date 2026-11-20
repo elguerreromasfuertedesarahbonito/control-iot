@@ -33,6 +33,8 @@ El joystick izquierdo controla desplazamiento. El derecho controla brazo y pala 
 
 La última entrada que admite el coordinador conserva el control; al soltarla se solicita DETENER. Una nueva entrada neutraliza la anterior, cuya liberación tardía no detiene el nuevo gesto. No se combinan movimientos simultáneos. Se mantienen las flechas del teclado con el joystick enfocado, los botones alternativos y Escape. Pasar a MONITOREO libera la entrada y solicita STOP si había movimiento manual; la navegación interna no cancela por sí misma una DEMO. La parada global sigue disponible y la pérdida de foco/visibilidad conserva su política de seguridad independiente.
 
+**Luz** y **Sonido** están entre los joysticks y se habilitan si el catálogo activo ofrece los códigos 10 y 11. Cada toque envía un pulso que el control físico usa para alternar el accesorio. El color estima el estado a partir de los toques aceptados en esta página, partiendo de los accesorios apagados. Si alternas desde otro control o abres el sitio con un accesorio ya encendido, el indicador puede diferir del estado físico.
+
 ## Monitoreo
 
 Muestra el último estado informado y hasta diez movimientos individuales persistidos mediante `GET /estado/{id_vehiculo}` y `GET /historial/{id_vehiculo}`. Ordena por `fecha_hora DESC, id_historial DESC`, conserva IDs distintos aunque repitan comando/fecha e incluye orígenes reales como `MANUAL`, `SEGURIDAD` y `WORKBENCH`.
