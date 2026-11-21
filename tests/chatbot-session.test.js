@@ -14,7 +14,7 @@ const proposal = () => ({
   confirmacion: { token: 'opaque-confirmation-token', resumen: 'Crear AUXILIAR', expira_en_segundos: 60 },
 });
 
-function fixture({ enabled = true } = {}) {
+function fixture({ enabled = true, requireAdminKey = true } = {}) {
   const interpretations = [], confirmations = [], executions = [], messages = [], busy = [], proposals = [];
   const control = {
     epoch: 0, refreshes: 0, execute: null,
@@ -39,7 +39,7 @@ function fixture({ enabled = true } = {}) {
   };
   let serial = 0;
   const session = new ChatSession(api, control, {
-    enabled, requestId: () => `request-${++serial}`,
+    enabled, requireAdminKey, requestId: () => `request-${++serial}`,
     onMessage: (...message) => messages.push(message), onBusy: value => busy.push(value),
     onConfirmation: value => proposals.push(value),
   });
@@ -52,6 +52,16 @@ async function prepareProposal(f) {
   assert.equal(await task, true);
   return f.session.confirmation;
 }
+
+test('la confirmación con sesión de administrador no solicita otra clave', async () => {
+  const f = fixture({ requireAdminKey: false });
+  await prepareProposal(f);
+  const task = f.session.confirm();
+  assert.equal(f.confirmations[0].args[2], undefined);
+  f.confirmations[0].resolve(answer({ tipo: 'crear_comando' }));
+  assert.equal(await task, true);
+  assert.equal(f.control.refreshes, 1);
+});
 
 test('rechaza texto vacío/largo y modo simulado sin interpretar ni ejecutar', async () => {
   const f = fixture();

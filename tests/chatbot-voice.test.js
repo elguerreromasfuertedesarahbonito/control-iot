@@ -144,7 +144,7 @@ test("un toque empieza inmediatamente y mantiene la escucha hasta el segundo toq
   assert.equal(r.continuous, true);
   assert.equal(r.interimResults, true);
   assert.equal(f.button.attributes.get("aria-pressed"), "true");
-  f.clock.tick(279); f.up();
+  f.clock.tick(299); f.up();
   assert.equal(r.stops, 0);
   f.button.emit("click", { detail: 1 });
   f.down(); f.up();
@@ -157,19 +157,55 @@ test("un toque empieza inmediatamente y mantiene la escucha hasta el segundo toq
   f.voice.destroy();
 });
 
-test("mantener 280 ms conserva las primeras palabras y detener espera finales tardíos", () => {
+test("mantener 300 ms conserva las primeras palabras y detener espera finales tardíos", () => {
   const f = fixture();
   f.down();
   const r = f.instances[0];
   r.results([["avanzar", false]]);
   assert.deepEqual(f.transcripts, []);
-  f.clock.tick(280); f.up();
+  f.clock.tick(300); f.up();
   assert.equal(r.stops, 1);
   r.results([["Avanzar", true], ["despacio", true]]);
   assert.deepEqual(f.transcripts, []);
   r.end(); r.end();
   assert.deepEqual(f.transcripts, ["Avanzar despacio"]);
   assert.equal(f.clock.timers.size, 0);
+  f.voice.destroy();
+});
+
+for (const recorded of [false, true]) {
+  test(`corta el modo toque tras 1500 ms de silencio en voz ${recorded ? "grabada" : "nativa"}`, () => {
+    const f = fixture({ supported: !recorded, recorded });
+    f.tap();
+    const engine = f.instances[0];
+    engine.onspeechstart();
+    f.clock.tick(820);
+    engine.onspeechend();
+    f.clock.tick(1499);
+    assert.equal(engine.stops, 0);
+    engine.onspeechstart();
+    f.clock.tick(700);
+    assert.equal(engine.stops, 0);
+    engine.onspeechend();
+    f.clock.tick(1500);
+    assert.equal(engine.stops, 1);
+    engine.results([["avance", true]]);
+    engine.end();
+    assert.deepEqual(f.transcripts, ["avance"]);
+    f.voice.destroy();
+  });
+}
+
+test("mantener pulsado ignora el silencio y termina al soltar", () => {
+  const f = fixture();
+  f.down();
+  const engine = f.instances[0];
+  engine.onspeechstart();
+  engine.onspeechend();
+  f.clock.tick(2000);
+  assert.equal(engine.stops, 0);
+  f.up();
+  assert.equal(engine.stops, 1);
   f.voice.destroy();
 });
 

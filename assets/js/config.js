@@ -5,6 +5,7 @@ const localApi = ['127.0.0.1', 'localhost'].includes(globalThis.location?.hostna
 export const CONFIG = Object.freeze({
   apiBaseUrl: localApi ? 'http://127.0.0.1:8001' : 'https://excavadora-iot-rsc.duckdns.org',
   wsUrlTemplate: localApi ? 'ws://127.0.0.1:8001/ws/demos/{id_demo}' : 'wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}',
+  wsVehicleUrlTemplate: localApi ? 'ws://127.0.0.1:8001/ws/vehiculos/{id_vehiculo}' : 'wss://excavadora-iot-rsc.duckdns.org/ws/vehiculos/{id_vehiculo}',
   vehicleId: 1,
   defaultDemoId: 1,
   healthPath: '/health',

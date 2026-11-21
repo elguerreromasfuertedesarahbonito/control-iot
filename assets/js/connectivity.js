@@ -12,7 +12,7 @@ export class Connectivity {
   }
 
   paint(service, state, label) {
-    for (const id of [`${service}-status`, `monitor-${service}-status`]) {
+    for (const id of [`${service}-status`, `monitor-${service}-status`, `admin-${service}-status`]) {
       const element = document.getElementById(id);
       if (!element) continue;
       element.dataset.state = state;
@@ -43,6 +43,15 @@ export class Connectivity {
         this.paint('api', error.kind === 'config' ? 'unverified' : 'offline', error.kind === 'config' ? 'Sin configurar' : 'No disponible');
         this.onApiStatus(false, error.message);
       } finally {
+        if (!this.stopped && !this.simulation && this.api.commercial) {
+          try {
+            await this.api.commercial('/ready', { signal: flight.controller.signal });
+            if (!this.stopped) this.paint('rds', 'online', 'Disponible');
+          } catch (error) {
+            if (!this.stopped) this.paint('rds', error.status === 503 ? 'offline' : 'unverified',
+              error.status === 503 ? 'No disponible' : 'Sin verificar');
+          }
+        }
         if (this.flight === flight) this.flight = null;
         if (!this.stopped) this.timer = setTimeout(() => { void this.refresh(); }, this.config.healthIntervalMs);
       }

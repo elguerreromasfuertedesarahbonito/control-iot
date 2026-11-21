@@ -2,6 +2,8 @@
 const FORMATS = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'];
 const AUDIO_TYPES = new Set(['audio/webm', 'audio/mp4', 'audio/ogg']);
 const MAX_AUDIO_BYTES = 1024 * 1024;
+const SPEECH_RMS = 0.025;
+const SAMPLE_MS = 50;
 const TRANSCRIPTION_ERRORS = new Map([
   [404, 'transcription-not-installed'],
   [413, 'audio-too-large'],
@@ -28,6 +30,7 @@ export function createRecordedRecognition({
   transcribe,
   mediaDevices = globalThis.navigator?.mediaDevices,
   MediaRecorderImpl = globalThis.MediaRecorder,
+  AudioContextImpl = globalThis.AudioContext ?? globalThis.webkitAudioContext,
   maxBytes = MAX_AUDIO_BYTES,
 } = {}) {
   if (typeof transcribe !== 'function' || typeof mediaDevices?.getUserMedia !== 'function'
@@ -40,7 +43,7 @@ export function createRecordedRecognition({
 
     start() {
       if (this.#session) return;
-      const session = { stream: null, recorder: null, chunks: [], size: 0, type: '', stopping: false, uploading: false, controller: new AbortController() };
+      const session = { stream: null, recorder: null, chunks: [], size: 0, type: '', stopping: false, uploading: false, controller: new AbortController(), releaseSampler: null };
       this.#session = session;
       // getUserMedia se invoca en la misma interacción que activó el micrófono.
       this.#record(session).catch(error => this.#finish(session, microphoneError(error)));
@@ -62,7 +65,42 @@ export function createRecordedRecognition({
       recorder.onerror = event => this.#finish(session, microphoneError(event.error));
       recorder.onstop = () => { void this.#transcribe(session); };
       recorder.start(250);
+      this.#observeSpeech(session);
       this.onstart?.();
+    }
+
+    #observeSpeech(session) {
+      if (typeof AudioContextImpl !== 'function') return;
+      let context;
+      try {
+        context = new AudioContextImpl();
+        const source = context.createMediaStreamSource(session.stream);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 1024;
+        source.connect(analyser);
+        const samples = new Float32Array(analyser.fftSize);
+        let speaking = false;
+        const timer = setInterval(() => {
+          if (this.#session !== session || session.stopping || context.state !== 'running') return;
+          analyser.getFloatTimeDomainData(samples);
+          const rms = Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length);
+          const active = rms >= SPEECH_RMS;
+          if (active === speaking) return;
+          speaking = active;
+          if (active) this.onspeechstart?.();
+          else this.onspeechend?.();
+        }, SAMPLE_MS);
+        session.releaseSampler = () => {
+          clearInterval(timer);
+          source.disconnect();
+          analyser.disconnect();
+          void context.close().catch(() => {});
+        };
+        void context.resume().catch(() => {});
+      } catch {
+        if (context) void context.close().catch(() => {});
+        // Sin analizador, el toque o la liberación todavía pueden terminar la grabación.
+      }
     }
 
     #receive(session, chunk) {
@@ -104,6 +142,8 @@ export function createRecordedRecognition({
     }
 
     #releaseMic(session) {
+      session.releaseSampler?.();
+      session.releaseSampler = null;
       const stream = session.stream;
       session.stream = null;
       stopTracks(stream);

@@ -15,7 +15,7 @@ export function createChatbot({ api, control, enabled = true }) {
   const status = find('chat-status');
   const voiceHelp = find('chat-voice-help');
   const confirmationForm = find('chat-confirmation');
-  const admin = find('chat-admin-key');
+  const confirmButton = find('chat-confirm');
   let expiryTimer;
   let busy = false;
   let voice;
@@ -48,11 +48,10 @@ export function createChatbot({ api, control, enabled = true }) {
     form.setAttribute('aria-busy', String(value));
   }
   const session = new ChatSession(api, control, {
-    enabled, onMessage: append, onBusy: setBusy,
+    enabled, requireAdminKey: false, onMessage: append, onBusy: setBusy,
     onConfirmation(value) {
       clearTimeout(expiryTimer);
       confirmationForm.hidden = !value;
-      admin.value = '';
       if (voice) { voice.stop({ discard: true }); mic.disabled = Boolean(value) || busy || !voice.supported; }
       if (!value) return;
       find('chat-confirm-summary').textContent = value.resumen;
@@ -60,7 +59,7 @@ export function createChatbot({ api, control, enabled = true }) {
         if (session.confirming) { append('bot', 'La confirmación ya está en curso. Espera su resultado y verifica el catálogo si se pierde la conexión.'); return; }
         session.clearConfirmation(); append('bot', 'La propuesta caducó; no se modificó el catálogo.');
       }, value.expira_en_segundos * 1000);
-      admin.focus();
+      confirmButton.focus();
     },
   });
   voice = createVoiceInput({
@@ -75,8 +74,8 @@ export function createChatbot({ api, control, enabled = true }) {
     onStatus(state, detail = {}) {
       voiceHelp.dataset.mode = detail.mode;
       voiceHelp.textContent = detail.mode === 'recorded'
-        ? 'Toca para alternar o mantén y suelta. Al terminar, la grabación se envía a Gemini para transcribirla.'
-        : 'Voz: toca para alternar o mantén y suelta. El reconocimiento puede usar el servicio de voz del navegador.';
+        ? 'Toca para alternar. Se detiene tras 1.5 s de silencio después de hablar. Mantén pulsado y suelta para finalizar. Gemini transcribe la grabación.'
+        : 'Toca para alternar. Se detiene tras 1.5 s de silencio después de hablar. Mantén pulsado y suelta para finalizar.';
       if (busy) return;
       if (state === 'listening') {
         status.textContent = detail.starting ? 'Activando micrófono…' : detail.transcript || 'Escuchando… suelta o toca para terminar.';
@@ -127,9 +126,7 @@ export function createChatbot({ api, control, enabled = true }) {
   listen(confirmationForm, 'submit', event => {
     event.preventDefault();
     voice.stop({ discard: true });
-    const key = admin.value;
-    admin.value = '';
-    void session.confirm(key);
+    void session.confirm();
   });
   listen(find('chat-cancel-confirm'), 'click', () => { session.clearConfirmation(); append('bot', 'Cambio cancelado. No se modificó el catálogo.'); input.focus(); });
   setBusy(false);

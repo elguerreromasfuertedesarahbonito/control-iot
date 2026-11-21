@@ -29,6 +29,18 @@ export class ControlCoordinator {
   }
   emit() { this.onChange(this.snapshot()); }
   configure(catalog) { this.catalog = catalog; this.emit(); }
+  reset() {
+    this.epoch++;
+    this.pending = null;
+    this.mode = 'idle';
+    this.demoId = null;
+    this.executionId = null;
+    this.events.clear();
+    this.demoEvents.clear();
+    this.action = { name: 'En espera', requested: false, accepted: false, received: false };
+    this.message = 'Selecciona un vehículo en Acceso.';
+    this.emit();
+  }
   setReady(value) { this.ready = Boolean(value); this.emit(); }
   begin(name) {
     this.action = { name, requested: true, accepted: false, received: false, eventId: null };

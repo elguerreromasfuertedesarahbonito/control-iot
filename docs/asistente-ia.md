@@ -52,7 +52,7 @@ Texto o transcripción final
 
 Propuesta de creación/eliminación
   → resumen visible y confirmación explícita
-  → POST /asistente/confirmar + X-Admin-Key
+  → POST /asistente/confirmar con sesión de administrador
   → validación y escritura autorizada en el backend
 ```
 
@@ -118,7 +118,7 @@ El texto del token es ilustrativo. El cliente utiliza el valor devuelto por el s
 
 ### Confirmación administrativa
 
-`POST /asistente/confirmar` recibe el token pendiente y otro UUID de solicitud. La clave administrativa se envía únicamente en la cabecera `X-Admin-Key` sobre HTTPS:
+`POST /asistente/confirmar` recibe el token pendiente, el ID de solicitud y la sesión autenticada de un administrador en la cabecera `Authorization`.
 
 ```json
 {
@@ -127,11 +127,11 @@ El texto del token es ilustrativo. El cliente utiliza el valor devuelto por el s
 }
 ```
 
-Antes de confirmar, revisar el resumen del objeto, vehículo y operación. La clave se escribe en un campo de tipo contraseña y no se guarda en `localStorage`, `sessionStorage`, la configuración pública ni el historial de conversación. Cancelar o dejar vencer una propuesta no debe ejecutar la mutación. Un token es de un solo uso y tiene caducidad; un reintento no debe duplicar una operación ya completada.
+Antes de confirmar, revisa el resumen del objeto, vehículo y operación. Cancelar o dejar vencer una propuesta evita la escritura. El token de confirmación caduca y se usa una sola vez.
 
 Una vez enviado el POST de confirmación, cerrar el diálogo o abortar Fetch **no deshace la escritura**. El panel advierte esa posibilidad; no debe declarar «no se modificó» por un cierre, un timeout o un 503 cuyo resultado sea incierto. Durante la confirmación se deshabilita Cancelar y, si vence la propuesta mientras el POST ya está en curso, se espera su resultado. Ante pérdida de conexión, consultar el catálogo antes de volver a crear o eliminar.
 
-Consultar, mover, detener y solicitar una DEMO no requieren esa clave administrativa. La protección adicional se limita a crear/eliminar comandos; no funciona como una cuenta de usuario ni una autorización global del control.
+Consultar, mover, detener y solicitar una DEMO siguen las reglas de acceso y reserva de la unidad. La confirmación adicional se limita a crear o eliminar comandos.
 
 Una propuesta administrativa requiere intención explícita de creación o eliminación. Una negación no debe abrir el formulario de clave. Los mensajes que parecen contener una clave o contraseña se rechazan antes de consultar Gemini/BD; la clave solo se introduce en su campo específico y nunca por voz o en la conversación.
 
@@ -207,7 +207,7 @@ El proveedor interpreta datos de catálogo y mensajes, pero el backend debe vali
 3. Crear o actualizar `.env.gemini` **dentro del servidor**, con la clave del proveedor y la clave administrativa, sin enviarlas al repositorio del frontend.
 4. Reiniciar la API con `python run.py`, manteniendo un único worker y `asyncio:SelectorEventLoop` en Windows. La nueva configuración no se aplica al proceso ya iniciado.
 5. Mantener Caddy y el dominio HTTPS/WSS actuales. Si el asistente utiliza el mismo origen de API, el proxy general `reverse_proxy 127.0.0.1:8000` ya enruta las nuevas rutas; no necesita exponer otro puerto ni alojar un segundo backend.
-6. Publicar únicamente las fuentes públicas del frontend. Si se utiliza una cabecera administrativa, comprobar que la configuración CORS permita `X-Admin-Key` además de `Content-Type` para el origen real de Pages.
+6. Publicar solo las fuentes públicas del frontend. Comprobar que CORS permita `Authorization` y `Content-Type` para el origen real de Pages.
 
 La instalación y el reinicio no prueban por sí mismos la integración con el proveedor. La clave ausente, un modelo no disponible, una cuota agotada o un timeout deben producir un error comprensible y no una acción de movimiento o una mutación inventada.
 

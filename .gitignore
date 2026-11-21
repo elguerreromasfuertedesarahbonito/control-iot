@@ -1,7 +1,8 @@
-node_modules/
-_site/
 .env
 .env.*
+!.env.example
+node_modules/
+_site/
 *.log
 playwright-report/
 test-results/

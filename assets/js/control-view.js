@@ -3,6 +3,7 @@ import { ControlCoordinator } from './coordinator.js';
 import { VirtualJoystick } from './joystick.js';
 import { ManualInput } from './manual-input.js';
 import { AssistantPulse } from './chatbot/pulse.js';
+import { bindDemoHold } from './visual-effects.js';
 
 export function createControlView({ config, api, simulation = false, selectRoom, disconnectRoom, onReconnect, onVehicle = () => {} }) {
 const CONFIG = config;
@@ -12,6 +13,7 @@ const accessoryStates = { light: 'unknown', sound: 'unknown' };
 let pendingAccessory = null;
 let active = true;
 let apiAvailable = false;
+let permitted = simulation;
 let socketReady = false;
 let catalog = null;
 let demos = [];
@@ -74,7 +76,7 @@ function canMove() {
     !['accessory', 'demo', 'demo-starting', 'stopping', 'uncertain'].includes(coordinator.mode);
 }
 function updateReady() {
-  coordinator.setReady(Boolean(apiAvailable && socketReady && catalog?.directions.stop));
+  coordinator.setReady(Boolean(permitted && apiAvailable && socketReady && catalog?.directions.stop));
 }
 function render(snapshot = coordinator.snapshot()) {
   const movementAllowed = canMove();
@@ -105,6 +107,7 @@ function render(snapshot = coordinator.snapshot()) {
   $('start-demo').disabled = !active || !snapshot.ready || snapshot.mode !== 'idle' || !readyForDemo || !selectedDemo;
   $('cancel-demo').disabled = !['demo', 'demo-starting'].includes(snapshot.mode);
   $('stop-button').classList.toggle('is-busy', snapshot.mode === 'stopping');
+  for (const id of ['stop-button', 'global-stop', 'details-stop', 'demo-dialog-stop']) $(id).disabled = !permitted;
   $('stop-button').setAttribute('aria-busy', String(snapshot.mode === 'stopping'));
   $('action-name').textContent = snapshot.action.name.replaceAll('_', ' ');
   for (const [id, key] of [['action-requested', 'requested'], ['action-accepted', 'accepted'], ['action-received', 'received']]) {
@@ -186,9 +189,10 @@ $('global-stop').addEventListener('click', () => { neutral(); void coordinator.s
 $('details-stop').addEventListener('click', () => { neutral(); void coordinator.stop(); });
 $('demo-dialog-stop').addEventListener('click', () => { neutral(); void coordinator.stop(); });
 $('cancel-demo').addEventListener('click', () => { neutral(); void coordinator.stop(); });
-$('start-demo').addEventListener('click', () => { neutral(); void coordinator.startDemo(selectedDemo); });
+bindDemoHold($('start-demo'), () => { neutral(); void coordinator.startDemo(selectedDemo); });
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
+    if (!permitted) return;
     event.preventDefault(); neutral(); void coordinator.stop();
     if ($('details-dialog').open) $('details-dialog').close();
     if ($('demo-dialog').open) $('demo-dialog').close();
@@ -267,12 +271,13 @@ async function connect() {
   }
   $('connection-notice').textContent = simulation
     ? 'MODO SIMULADO · Todos los datos y eventos son de prueba. No se conecta con AWS, RDS ni con la excavadora.'
-    : 'WebSocket verifica la sesión del navegador; /health verifica la API. RDS permanece sin verificar porque no hay diagnóstico de dependencias.';
+    : 'WebSocket verifica la sesión del navegador. La API y RDS se comprueban por separado.';
   try {
     const [vehicle, commands, availableDemos] = await Promise.all([api.vehicle(), api.commands(), api.demos()]);
     catalog = buildCatalog(commands, CONFIG.vehicleId); coordinator.configure(catalog);
     onVehicle(vehicle);
     $('vehicle-name').textContent = vehicle.nombre;
+    $('vehicle-id').textContent = String(vehicle.id_vehiculo).padStart(2, '0');
     $('vehicle-model').textContent = vehicle.modelo || 'Control remoto mediante API';
     for (const source of auxiliarySources.splice(0)) manualInput.unregister(source);
     $('auxiliary-controls').replaceChildren();
@@ -306,6 +311,29 @@ async function connect() {
 $('reconnect-button').addEventListener('click', () => { void onReconnect(); });
 return {
   connect,
+  setPermission(value) { permitted = Boolean(value); updateReady(); },
+  async beforeSwitch() {
+    neutral();
+    if (coordinator.stopTask) await coordinator.stopTask;
+    else if (permitted && ['manual', 'accessory', 'demo', 'demo-starting'].includes(coordinator.mode)) {
+      await coordinator.stop();
+    }
+  },
+  resetVehicle() {
+    ++definitionGeneration;
+    neutral();
+    socketReady = false;
+    catalog = null;
+    demos = [];
+    selectedDemo = null;
+    readyForDemo = false;
+    coordinator.configure(null);
+    coordinator.reset();
+    $('demo-select').replaceChildren();
+    $('auxiliary-controls').replaceChildren();
+    $('demo-summary').textContent = 'Sin unidad seleccionada';
+    updateReady();
+  },
   onSocketStatus,
   onReady() { socketReady = true; updateReady(); for (const ready of socketWaiters) ready(); },
   observe(event) { coordinator.observe(event); },

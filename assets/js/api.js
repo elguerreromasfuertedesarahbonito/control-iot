@@ -50,9 +50,10 @@ function serverDetail(body) {
 }
 
 /** Construir el cliente no abre conexiones; cada método devuelve una promesa. */
-export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
-  async function request(path, { method = "GET", body, contentType = "application/json", signal, validate = object, timeoutMs, adminKey } = {}) {
-    const url = apiUrl(config, path);
+export function createApi(config, { fetchImpl = globalThis.fetch, getAccessToken = () => null } = {}) {
+  async function request(path, { method = "GET", body, contentType = "application/json", signal, validate = object, timeoutMs, adminKey, query } = {}) {
+    const url = new URL(apiUrl(config, path));
+    if (query) url.search = new URLSearchParams(query);
     if (typeof fetchImpl !== "function") {
       throw new ApiError("Este navegador no permite realizar peticiones HTTP.", { kind: "config" });
     }
@@ -70,9 +71,11 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
     }, duration);
     try {
       const headers = { Accept: "application/json" };
+      const token = getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
       if (body !== undefined) headers["Content-Type"] = contentType;
       if (adminKey !== undefined) headers['X-Admin-Key'] = adminKey;
-      const response = await fetchImpl(url, {
+      const response = await fetchImpl(url.href, {
         method, headers, signal: controller.signal, credentials: "omit", cache: "no-store",
         ...(body !== undefined ? { body: contentType === "application/json" ? JSON.stringify(body) : body } : {}),
       });
@@ -120,6 +123,8 @@ export function createApi(config, { fetchImpl = globalThis.fetch } = {}) {
   const demoId = (value) => requireId(value, "La demo");
 
   return Object.freeze({
+    commercial(path, options) { return request(path, options); },
+    vehicles() { return request('/vehiculos', { validate: rows }); },
     async health({ signal } = {}) {
       return request(config.healthPath ?? "/health", { signal,
         validate: (value) => object(value) && value.status === "ok",

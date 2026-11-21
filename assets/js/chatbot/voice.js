@@ -1,6 +1,8 @@
 /** Entrada por voz del navegador. Solo una interacción explícita abre el micrófono. */
 const MAX_SESSION_MS = 30000;
 const END_TIMEOUT_MS = 2000;
+const SILENCE_TIMEOUT_MS = 1500;
+const HOLD_DELAY_MS = 300;
 const MAX_TRANSCRIPT = 1000;
 const FALLBACK_ERRORS = new Set(["network", "service-not-allowed", "language-not-supported"]);
 
@@ -28,7 +30,7 @@ export function createVoiceInput({
   onError = () => {},
   Recognition = globalThis.window?.SpeechRecognition ?? globalThis.window?.webkitSpeechRecognition,
   RecordedRecognition = null,
-  holdDelayMs = 280,
+  holdDelayMs = HOLD_DELAY_MS,
 } = {}) {
   if (!button?.addEventListener || !button?.setAttribute) {
     throw new TypeError("La entrada por voz necesita un botón.");
@@ -40,13 +42,13 @@ export function createVoiceInput({
     if (timer !== null) (view.clearTimeout ?? globalThis.clearTimeout).call(view, timer);
   };
   const now = () => view.performance?.now?.() ?? Date.now();
-  const holdDelay = Number.isFinite(holdDelayMs) && holdDelayMs >= 0 ? holdDelayMs : 280;
+  const holdDelay = Number.isFinite(holdDelayMs) && holdDelayMs >= 0 ? holdDelayMs : HOLD_DELAY_MS;
   const nativeSupported = typeof Recognition === "function";
   const recordedSupported = typeof RecordedRecognition === "function";
   const supported = nativeSupported || recordedSupported;
   let mode = nativeSupported ? "native" : recordedSupported ? "recorded" : "unsupported";
   const listeners = [];
-  const pressedKeys = new Set();
+  const pressedKeys = new Map();
   let session = null;
   let pointer = null;
   let destroyed = false;
@@ -85,9 +87,12 @@ export function createVoiceInput({
     session = null;
     clearTimer(current.limitTimer);
     clearTimer(current.endTimer);
+    clearTimer(current.silenceTimer);
     releasePointer();
     current.recognition.onstart = null;
     current.recognition.onresult = null;
+    current.recognition.onspeechstart = null;
+    current.recognition.onspeechend = null;
     current.recognition.onerror = null;
     current.recognition.onend = null;
     const transcript = discard || current.discard ? "" : finalText(current);
@@ -122,6 +127,7 @@ export function createVoiceInput({
     if (current.stopping) return;
     current.stopping = true;
     clearTimer(current.limitTimer);
+    clearTimer(current.silenceTimer);
     current.limitTimer = null;
     status("processing", { supported });
     // Algunos motores entregan sus últimos resultados después de stop().
@@ -135,7 +141,17 @@ export function createVoiceInput({
     }
   }
 
-  function start() {
+  function armSilenceTimer(current) {
+    clearTimer(current.silenceTimer);
+    current.silenceTimer = null;
+    if (!current.toggled || current.stopping || current.silenceSince === null) return;
+    const remaining = Math.max(0, SILENCE_TIMEOUT_MS - (now() - current.silenceSince));
+    current.silenceTimer = setTimer(() => {
+      if (session === current) stop();
+    }, remaining);
+  }
+
+  function start(toggled = false) {
     if (destroyed || !supported || button.disabled || session) return;
     const Engine = mode === "recorded" ? RecordedRecognition : Recognition;
     let recognition;
@@ -146,6 +162,7 @@ export function createVoiceInput({
     const current = {
       recognition, final: new Map(), stopping: false, discard: false,
       mode, endTimeoutMs: Engine.endTimeoutMs ?? END_TIMEOUT_MS, limitTimer: null, endTimer: null,
+      toggled, hasSpeechEvents: false, silenceSince: null, silenceTimer: null, lastTranscript: "",
     };
     session = current;
     recognition.lang = "es-MX";
@@ -154,6 +171,18 @@ export function createVoiceInput({
     recognition.maxAlternatives = 1;
     recognition.onstart = () => {
       if (session === current && !current.stopping) status("listening", { supported });
+    };
+    recognition.onspeechstart = () => {
+      if (session !== current || current.stopping) return;
+      current.hasSpeechEvents = true;
+      current.silenceSince = null;
+      armSilenceTimer(current);
+    };
+    recognition.onspeechend = () => {
+      if (session !== current || current.stopping) return;
+      current.hasSpeechEvents = true;
+      current.silenceSince = now();
+      armSilenceTimer(current);
     };
     recognition.onresult = (event) => {
       if (session !== current || current.discard) return;
@@ -170,6 +199,12 @@ export function createVoiceInput({
         else interim.push(value);
       }
       const transcript = cleanText(`${finalText(current)} ${interim.join(" ")}`).slice(0, MAX_TRANSCRIPT).trim();
+      // Algunos motores no emiten speechstart/speechend; el texto indica actividad.
+      if (transcript && transcript !== current.lastTranscript && !current.hasSpeechEvents && !current.stopping) {
+        current.lastTranscript = transcript;
+        current.silenceSince = now();
+        armSilenceTimer(current);
+      }
       status(current.stopping ? "processing" : "listening", { transcript, supported });
     };
     recognition.onerror = (event) => recognitionError(current, event?.error ?? "unknown");
@@ -185,7 +220,16 @@ export function createVoiceInput({
 
   function toggle() {
     if (phase === "listening") stop();
-    else if (phase === "idle") start();
+    else if (phase === "idle") start(true);
+  }
+
+  function completePress(started) {
+    if (!session || session.stopping) return;
+    if (now() - started >= holdDelay) stop();
+    else {
+      session.toggled = true;
+      armSilenceTimer(session);
+    }
   }
 
   function listen(target, name, handler) {
@@ -216,10 +260,10 @@ export function createVoiceInput({
     listen(button, "pointerup", (event) => {
       if (!pointer || pointer.id !== event.pointerId) return;
       event.preventDefault();
-      const held = now() - pointer.started >= holdDelay;
+      const { started } = pointer;
       suppressClickUntil = now() + 700;
       releasePointer();
-      if (held) stop();
+      completePress(started);
     });
     const pointerCancelled = (event) => {
       if (!pointer || pointer.id !== event.pointerId) return;
@@ -237,16 +281,20 @@ export function createVoiceInput({
       if (key !== "Enter" && key !== " ") return;
       event.preventDefault();
       if (event.repeat || pressedKeys.has(key)) return;
-      pressedKeys.add(key);
+      const started = phase === "idle" ? now() : null;
+      pressedKeys.set(key, started);
       suppressClickUntil = now() + 700;
-      toggle();
+      if (started === null) toggle();
+      else start();
     });
     listen(button, "keyup", (event) => {
       const key = event.key === "Spacebar" ? " " : event.key;
       if (key !== "Enter" && key !== " ") return;
       event.preventDefault();
+      const started = pressedKeys.get(key);
       pressedKeys.delete(key);
       suppressClickUntil = now() + 700;
+      if (Number.isFinite(started)) completePress(started);
     });
     listen(button, "click", (event) => {
       event.preventDefault();

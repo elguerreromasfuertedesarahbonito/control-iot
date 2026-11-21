@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="./assets/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="./assets/css/styles.css">
     <link rel="stylesheet" href="./assets/css/chatbot.css">
+    <link rel="stylesheet" href="./assets/css/commercial.css">
+    <link rel="stylesheet" href="./assets/css/visual-effects.css">
   </head>
   <body>
     <a class="skip-link" href="#main-content">Ir al contenido</a>
@@ -24,8 +26,10 @@
         <nav class="view-navigation" aria-label="Vistas de la aplicación">
           <a id="nav-control" class="view-link" href="#control" data-view="control" aria-controls="control-view" aria-current="page">Control</a>
           <a id="nav-monitor" class="view-link" href="#monitoreo" data-view="monitoreo" aria-controls="monitor-view">Monitoreo</a>
+          <a id="nav-admin" class="view-link" href="#administracion" data-view="administracion" aria-controls="admin-view" hidden>Administración</a>
         </nav>
         <div class="header-actions">
+          <button id="open-access" class="icon-button account-button" type="button" aria-label="Acceso y vehículos" aria-haspopup="dialog" aria-controls="access-dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></svg><span>Acceso</span></button>
           <button id="open-demo" class="icon-button compact-demo-button" type="button" aria-label="Abrir demostraciones" aria-haspopup="dialog" aria-controls="demo-dialog"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" fill="currentColor"/></svg><span>DEMO</span></button>
           <button id="open-details" class="icon-button details-button" type="button" aria-label="Abrir información, ayuda y funciones adicionales" aria-haspopup="dialog" aria-controls="details-dialog">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6m0-10v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -41,12 +45,13 @@
           <div class="vehicle-identity">
             <p class="eyebrow">ESTACIÓN REMOTA <span class="vehicle-number">/ <span id="vehicle-id">01</span></span></p>
             <h1 id="vehicle-name">Excavadora IoT</h1>
-            <p id="vehicle-model" class="vehicle-meta">Cargando vehículo</p>
+            <p id="vehicle-model" class="vehicle-meta">Selecciona una unidad en Acceso</p>
           </div>
+          <div class="vehicle-actions"><button id="lease-button" class="icon-button" type="button" hidden>Tomar control</button>
           <button id="reconnect-button" class="icon-button reconnect-button" type="button" aria-label="Volver a comprobar la conexión y reconectar WebSocket">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 7.5a7 7 0 0 1 11.6-1L20 9M4 15l2.3 2.5a7 7 0 0 0 11.6-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             <span>Reconectar</span>
-          </button>
+          </button></div>
         </section>
 
         <section class="connection-grid" aria-label="Conectividad de la aplicación">
@@ -173,11 +178,45 @@
             <p class="monitor-history-note">Registros guardados por el servicio. Los pasos de DEMO no se agregan a este historial individual.</p>
           </section>
         </section>
+        <section id="admin-view" class="app-view commercial-view" aria-labelledby="admin-title" hidden>
+          <div class="commercial-heading">
+            <div><h1 id="admin-title">Administración</h1><p id="admin-context"></p></div>
+            <button id="admin-refresh" class="icon-button" type="button">Actualizar</button>
+          </div>
+          <div class="connection-grid" aria-label="Conectividad de la aplicación">
+            <article class="connection-card"><h2 class="connection-label">WS</h2><span id="admin-ws-status" class="connection-value" data-state="offline">Desconectado</span></article>
+            <article class="connection-card"><h2 class="connection-label">API</h2><span id="admin-api-status" class="connection-value" data-state="checking">Comprobando</span></article>
+            <article class="connection-card"><h2 class="connection-label">RDS</h2><span id="admin-rds-status" class="connection-value" data-state="unverified">Sin verificar</span></article>
+          </div>
+          <nav id="admin-tabs" class="commercial-tabs" aria-label="Gestión de vehículos"></nav>
+          <p id="admin-status" class="commercial-status" role="status"></p>
+          <div id="admin-content"></div>
+        </section>
       </main>
 
       <footer class="app-footer"><p id="developer-credit">Desarrollado por Ricardo de Jesús Serrano Cortés · 2026</p><span class="footer-mark" aria-hidden="true">TERRA / CONTROL</span></footer>
     </div>
 
+    <dialog id="access-dialog" class="details-dialog commercial-dialog" aria-labelledby="access-title">
+      <div class="commercial-heading"><h2 id="access-title">Acceso y vehículos</h2><button id="close-access" type="button" class="icon-button">Cerrar</button></div>
+      <p id="access-identity"></p>
+      <p id="access-status" class="commercial-status" role="status"></p>
+      <form id="login-form" class="commercial-form">
+        <label>Correo<input class="form-control" name="email" type="email" autocomplete="username" required></label>
+        <label>Contraseña<input class="form-control" name="password" type="password" autocomplete="current-password" required></label>
+        <button class="button-primary" type="submit">Entrar</button>
+      </form>
+      <section class="commercial-units" aria-labelledby="access-units-title">
+        <h3 id="access-units-title">Exhibición pública</h3>
+        <div id="access-units"></div>
+      </section>
+      <button id="logout-button" class="icon-button" type="button" hidden>Cerrar sesión</button>
+    </dialog>
+    <dialog id="edit-dialog" class="details-dialog commercial-dialog" aria-labelledby="edit-title">
+      <div class="commercial-heading"><h2 id="edit-title"></h2><button id="edit-close" class="icon-button" type="button">Cancelar</button></div>
+      <form id="edit-form" class="commercial-form"></form>
+      <p id="edit-error" class="commercial-status" role="status"></p>
+    </dialog>
     <dialog id="demo-dialog" class="details-dialog demo-dialog" aria-labelledby="compact-demo-title">
       <div class="details-header"><div><p class="eyebrow">TERRA / CONTROL IoT</p><h2 id="compact-demo-title">Demostraciones</h2></div><form method="dialog"><button id="close-demo" class="icon-button" type="submit" aria-label="Cerrar demostraciones"><span aria-hidden="true">×</span></button></form></div>
       <div id="compact-demo-content" class="compact-demo-content"></div>
@@ -203,11 +242,10 @@
         <button id="chat-close" class="chat-close" type="button" aria-label="Cerrar asistente">×</button>
       </header>
       <ol id="chat-messages" class="chat-messages" role="log" aria-label="Conversación con el asistente" aria-live="polite" aria-relevant="additions">
-        <li class="chat-message chat-message--bot"><span class="chat-message-author">Terra AI</span><p>¿Qué hacemos hoy? Puedes decir «avanza», «abre la pala» o «ejecuta la demo 1».</p><p>Los movimientos duran un segundo por defecto. Si tu vehículo tiene habilitada la duración extendida, puedes decir «avanza durante cinco segundos». El máximo es de diez segundos.</p><p>Para crear o eliminar comandos te pediré confirmación y clave de administración.</p></li>
+        <li class="chat-message chat-message--bot"><span class="chat-message-author">Terra AI</span><p>¿Qué hacemos hoy? Puedes decir «avanza», «abre la pala» o «ejecuta la demo 1».</p><p>Los movimientos duran un segundo por defecto. Si tu vehículo tiene habilitada la duración extendida, puedes decir «avanza durante cinco segundos». El máximo es de diez segundos.</p><p>Crear o eliminar comandos requiere una sesión de administrador y confirmación.</p></li>
       </ol>
       <form id="chat-confirmation" class="chat-confirmation" hidden>
         <strong>Confirmar cambio de catálogo</strong><p id="chat-confirm-summary"></p>
-        <label for="chat-admin-key">Clave de administración</label><input id="chat-admin-key" type="password" autocomplete="off" spellcheck="false" maxlength="256" required>
         <div class="chat-confirm-actions"><button id="chat-cancel-confirm" type="button">Cancelar</button><button id="chat-confirm" type="submit">Confirmar cambio</button></div>
       </form>
       <form id="chat-form" class="chat-form" aria-label="Enviar petición al asistente">
@@ -217,7 +255,7 @@
           <button id="chat-send" class="chat-send" type="submit" aria-label="Enviar petición"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m4 12 16-8-5 16-3-7-8-1Zm8 1 8-9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
         </div>
         <p id="chat-status" class="chat-status" role="status">Listo para escribir o dictar.</p>
-        <p id="chat-voice-help" class="chat-voice-help">Voz: toca para alternar o mantén y suelta. El reconocimiento puede usar el servicio de voz del navegador.</p>
+        <p id="chat-voice-help" class="chat-voice-help">Toca para alternar. Se detiene tras 1.5 s de silencio después de hablar. Mantén pulsado y suelta para finalizar.</p>
       </form>
     </dialog>
     <script type="module" src="./assets/js/app.js"></script>

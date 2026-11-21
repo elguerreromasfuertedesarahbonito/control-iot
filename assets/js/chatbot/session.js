@@ -2,8 +2,8 @@ import { isStopMessage } from './contracts.js';
 
 /** La IA propone; el mismo coordinador de CONTROL conserva la autoridad. */
 export class ChatSession {
-  constructor(api, control, { enabled = true, onMessage = () => {}, onBusy = () => {}, onConfirmation = () => {}, requestId = () => crypto.randomUUID() } = {}) {
-    Object.assign(this, { api, control, enabled, onMessage, onBusy, onConfirmation, requestId });
+  constructor(api, control, { enabled = true, requireAdminKey = true, onMessage = () => {}, onBusy = () => {}, onConfirmation = () => {}, requestId = () => crypto.randomUUID() } = {}) {
+    Object.assign(this, { api, control, enabled, requireAdminKey, onMessage, onBusy, onConfirmation, requestId });
     this.busy = false;
     this.generation = 0;
     this.flight = null;
@@ -73,7 +73,7 @@ export class ChatSession {
 
   async confirm(adminKey) {
     const pending = this.confirmation;
-    if (!pending || this.busy || !adminKey) return false;
+    if (!pending || this.busy || (this.requireAdminKey && !adminKey)) return false;
     if (Date.now() >= pending.expiresAt) {
       this.clearConfirmation(); this.onMessage('error', 'La propuesta caducó. Solicita de nuevo el cambio.'); return false;
     }

@@ -1,16 +1,24 @@
-# Terra · Control y Monitoreo IoT
+# Terra · Control, Monitoreo y Administración IoT
+
+## Actividad 4.3
+
+CONTROL sigue siendo la vista inicial. En **Acceso**, los invitados pueden reservar una unidad de exhibición durante 15 minutos. Los compradores pueden gestionar las demos de sus unidades con movimientos existentes. Los administradores gestionan modelos, unidades, usuarios y asignaciones. El vehículo 1 está asignado al comprador inicial y habilitado para exhibición.
+
+Cada reserva permite un solo operador por unidad. El cliente abre una conexión WSS del vehículo con un ticket de un uso emitido por FastAPI. La API valida en el servidor el rol, la unidad y la reserva antes de aceptar órdenes. RDS conserva el estado, el historial, las demos y las nuevas relaciones de acceso. `/health` comprueba FastAPI y `/ready` comprueba RDS.
+
+El selector de tema ofrece cuatro paletas. El botón Ejecutar DEMO requiere una pulsación sostenida. En el asistente, mantén pulsado el micrófono para hablar hasta soltarlo o toca para alternar. Después de empezar a hablar, el modo de toque termina tras 1.5 segundos de silencio cuando el navegador lo permite.
 
 ## Asistente de texto y voz
 
-**Terra AI** permite usar CONTROL por texto o por voz, mediante toque o pulsación sostenida. Los movimientos del asistente duran un segundo por defecto. Una orden de voz con duración explícita puede llegar a diez segundos una vez actualizado el firmware y habilitado el vehículo en FastAPI. Crear o eliminar comandos requiere confirmación y `X-Admin-Key`. La clave de Gemini permanece en el backend. La [guía del asistente](docs/asistente-ia.md) explica el uso y la activación.
+**Terra AI** permite usar CONTROL por texto o por voz. Los movimientos del asistente duran un segundo por defecto. Una orden de voz con duración explícita puede llegar a diez segundos una vez actualizado el firmware y habilitado el vehículo en FastAPI. Crear o eliminar comandos requiere una sesión de administrador y confirmación. La clave de Gemini permanece en el backend. La [guía del asistente](docs/asistente-ia.md) explica el uso y la activación.
 
-La ampliación de duración por voz está en los archivos locales. Para publicarla, actualiza primero FastAPI en EC2, luego publica el frontend en el mismo GitHub Pages. Habilita la duración extendida para el vehículo después de cargar el firmware compatible.
+Habilita la duración extendida para el vehículo después de cargar el firmware compatible.
 
 Frontend de la excavadora para la actividad práctica 4.1, con vistas **CONTROL** y **MONITOREO**. HTML semántico, CSS, Bootstrap local y módulos JavaScript nativos; reutiliza la API FastAPI existente y no incorpora otro backend.
 
 Desarrollado por **Ricardo de Jesús Serrano Cortés · 2026**.
 
-## Estado de esta entrega
+## Evidencias anteriores de Control y Monitoreo
 
 Esta actualización integra CONTROL y MONITOREO y supera **68/68 pruebas automatizadas** con Fetch/WSS sustituidos. La revisión local comprobó ambas vistas en seis tamaños —12 combinaciones— sin scroll del documento, con diez filas de historial y DETENER de 44 px. La [validación completa](docs/monitoreo.md) distingue estos resultados de las pruebas reales de API. La actualización está publicada en [GitHub Pages](https://elguerreromasfuertedesarahbonito.github.io/control-iot/#monitoreo). El [workflow del commit funcional `e54b0a7`](https://github.com/elguerreromasfuertedesarahbonito/control-iot/actions/runs/43123386236) terminó correctamente; en la página pública se comprobaron WSS en línea, API disponible, diez registros reales y consola sin errores.
 
@@ -39,7 +47,7 @@ La última entrada que admite el coordinador conserva el control; al soltarla se
 
 Muestra el último estado informado y hasta diez movimientos individuales persistidos mediante `GET /estado/{id_vehiculo}` y `GET /historial/{id_vehiculo}`. Ordena por `fecha_hora DESC, id_historial DESC`, conserva IDs distintos aunque repitan comando/fecha e incluye orígenes reales como `MANUAL`, `SEGURIDAD` y `WORKBENCH`.
 
-Al abrir MONITOREO se consultan ambos recursos. La **única sesión WSS compartida**, de la sala DEMO seleccionada, actualiza estado y dispara lecturas agrupadas de historial cuando corresponde. La bienvenida/reconexión y el botón de actualización permiten resincronizar. No hay polling del historial ni filas inventadas desde WSS. Un paso DEMO no crea historial individual en el backend actual; una DEMO externa de otra sala o un `POST /historial` directo pueden requerir actualización REST.
+Al abrir MONITOREO se consultan ambos recursos. La única sesión WSS del vehículo actualiza el estado y dispara lecturas agrupadas del historial. La bienvenida, la reconexión y el botón de actualización permiten resincronizar. Un paso DEMO no crea historial individual.
 
 Las fechas naïve de este backend tienen origen **UTC confirmado en MySQL** y se presentan en `America/Mexico_City`, conservando su ISO original. Sin una zona de origen configurada y confirmada, el formateador conserva la hora recibida y muestra «Zona del backend sin confirmar».
 
@@ -60,7 +68,7 @@ Para ejecutar las pruebas automáticas:
 node --test tests/*.test.js
 ```
 
-Las direcciones públicas están configuradas en `assets/js/config.js`: API `https://excavadora-iot-rsc.duckdns.org` y WebSocket `wss://excavadora-iot-rsc.duckdns.org/ws/demos/{id_demo}`. Las pruebas automatizadas sustituyen transportes y usan fixtures; se distinguen de las lecturas y órdenes reales documentadas y de las verificaciones específicas todavía pendientes.
+Las direcciones públicas están en `assets/js/config.js`. El canal principal es `/ws/vehiculos/{id_vehiculo}`. Las pruebas automatizadas sustituyen REST y WSS y se ejecutan sin accionar la placa.
 
 ## Arquitectura y archivos
 
@@ -70,7 +78,7 @@ flowchart LR
   M[MONITOREO] --> REST[Cliente REST compartido]
   CO --> REST
   REST <-->|HTTPS| API[API FastAPI existente en AWS]
-  API -->|WSS: sala DEMO seleccionada| WS[Única sesión WebSocket]
+  API -->|WSS por vehículo| WS[Única sesión WebSocket]
   WS --> C
   WS --> M
   API <-->|Procedimientos SQL| DB[(Amazon RDS / MySQL)]

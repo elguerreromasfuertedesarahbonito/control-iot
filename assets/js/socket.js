@@ -7,16 +7,17 @@ const uuid = (value) => typeof value === "string" && /^[\da-f]{8}(?:-[\da-f]{4})
 const MAX_FRAME_BYTES = 64 * 1024;
 
 function socketUrl(config, demoId) {
-  if (!positiveId(demoId) || !positiveId(config.vehicleId)) {
+  if ((demoId !== null && !positiveId(demoId)) || !positiveId(config.vehicleId)) {
     throw new ApiError("Selecciona un vehículo y una demo válidos.", { kind: "config" });
   }
-  const template = config.wsUrlTemplate;
-  if (typeof template !== "string" || template.split("{id_demo}").length !== 2) {
-    throw new ApiError("Configura la URL WebSocket con {id_demo}.", { kind: "config" });
+  const template = demoId === null ? config.wsVehicleUrlTemplate : config.wsUrlTemplate;
+  const placeholder = demoId === null ? "{id_vehiculo}" : "{id_demo}";
+  if (typeof template !== "string" || template.split(placeholder).length !== 2) {
+    throw new ApiError("Configura la URL WebSocket de la unidad.", { kind: "config" });
   }
   let url;
   try {
-    url = new URL(template.replace("{id_demo}", String(demoId)));
+    url = new URL(template.replace(placeholder, String(demoId ?? config.vehicleId)));
   } catch {
     throw new ApiError("La URL WebSocket no es válida.", { kind: "config" });
   }
@@ -52,8 +53,8 @@ function normalizeEvent(value, demoId, vehicleId) {
   if (!object(value) || !["MANUAL", "DEMO", "TELEMETRIA"].includes(value.origen)) return null;
   const event = { tipo: value.tipo, origen: value.origen };
   if (value.id_demo !== undefined) {
-    if (value.id_demo !== demoId) return null;
-    event.id_demo = demoId;
+    if (!positiveId(value.id_demo) || (demoId !== null && value.id_demo !== demoId)) return null;
+    event.id_demo = value.id_demo;
   }
   if (value.id_vehiculo !== undefined) {
     if (value.id_vehiculo !== vehicleId) return null;
@@ -64,7 +65,7 @@ function normalizeEvent(value, demoId, vehicleId) {
     event.id_ejecucion = value.id_ejecucion;
   }
   if (value.tipo === "bienvenida") {
-    if (value.origen !== "TELEMETRIA" || value.id_demo !== demoId || value.id_vehiculo !== vehicleId ||
+    if (value.origen !== "TELEMETRIA" || (demoId !== null && value.id_demo !== demoId) || value.id_vehiculo !== vehicleId ||
         typeof value.corriendo !== "boolean") return null;
     event.corriendo = value.corriendo;
     event.estado = stateCopy(value.estado, vehicleId);
@@ -87,7 +88,7 @@ function normalizeEvent(value, demoId, vehicleId) {
     return event;
   }
   if (!["inicio", "comando", "pausa", "fin", "cancelado"].includes(value.tipo) ||
-      value.origen !== "DEMO" || value.id_demo !== demoId || value.id_vehiculo !== vehicleId ||
+      value.origen !== "DEMO" || !positiveId(value.id_demo) || value.id_vehiculo !== vehicleId ||
       !uuid(value.id_ejecucion)) return null;
   if (value.tipo === "inicio") {
     if (!positiveId(value.total_movimientos)) return null;
@@ -110,12 +111,13 @@ function normalizeEvent(value, demoId, vehicleId) {
 
 /** Observador: nunca publica estado, órdenes ni POST. */
 export class DemoSocket {
-  constructor(config, { WebSocketImpl = globalThis.WebSocket, onStatus = () => {}, onEvent = () => {}, onReady = () => {} } = {}) {
+  constructor(config, { WebSocketImpl = globalThis.WebSocket, onStatus = () => {}, onEvent = () => {}, onReady = () => {}, getTicket } = {}) {
     this.config = config;
     this.WebSocketImpl = WebSocketImpl;
     this.onStatus = onStatus;
     this.onEvent = onEvent;
     this.onReady = onReady;
+    this.getTicket = getTicket;
     this._generation = 0;
     this._socket = null;
     this._wanted = false;
@@ -186,13 +188,26 @@ export class DemoSocket {
     }, delay);
   }
 
-  _open(generation) {
+  async _open(generation) {
     if (!this._wanted || generation !== this._generation) return;
     this._status(this._attempt ? "reconnecting" : "connecting");
     let socket;
     try {
-      socket = new this.WebSocketImpl(this._url);
+      let url = this._url;
+      if (this.getTicket) {
+        const destination = new URL(url);
+        const { ticket } = await this.getTicket(this._demoId);
+        if (!this._wanted || generation !== this._generation) return;
+        if (typeof ticket !== 'string' || !ticket) throw new ApiError('No se recibió el pase de WebSocket.');
+        destination.searchParams.set('ticket', ticket);
+        url = destination.href;
+      }
+      socket = new this.WebSocketImpl(url);
     } catch (cause) {
+      if (cause?.status === 401 || cause?.status === 403) {
+        if (generation === this._generation) this._status("offline", { error: cause });
+        return;
+      }
       this._retry(generation, new ApiError("No se pudo abrir el canal WebSocket.", { kind: "network", cause }));
       return;
     }
