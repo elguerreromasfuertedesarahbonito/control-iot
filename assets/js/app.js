@@ -59,10 +59,14 @@ socket = new Socket(runtime, {
     connectivity.setSocketStatus(status);
     control.onSocketStatus(status, detail);
     monitor.setSocketStatus(status);
-    if (!simulation && !switching && wasOnline && ['offline', 'reconnecting'].includes(status)) access?.lostConnection();
+    const disconnected = wasOnline && ['offline', 'reconnecting'].includes(status);
     if (status === 'online' || status === 'offline' || status === 'reconnecting') wasOnline = status === 'online';
+    const reason = detail?.error?.kind;
+    if (status === 'offline' && ['session', 'reservation', 'forbidden'].includes(reason)) {
+      void access?.channelRejected(reason);
+    } else if (!simulation && !switching && disconnected) access?.lostConnection();
   },
-  onReady() { control.onReady(); },
+  onReady() { control.onReady(); access?.restoredConnection(); },
   onEvent(event) { control.observe(event); monitor.observe(event); },
 });
 const administration = createAdministration({ api, onDemoChange: () => control.connect() });

@@ -13,14 +13,17 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
   let deadline = null;
   let renewAfter = 0;
   let renewal = null;
+  let guestOffline = false;
   let pending = false;
   let revision = 0;
   let catalogRevision = 0;
   const tell = message => { status.textContent = message; };
+  const updatePermission = () => changePermissions(session, Boolean(deadline) && !guestOffline);
   const setLease = value => {
     deadline = duration(value, Date.now()) > 0 ? value : null;
+    if (!deadline) guestOffline = false;
     renewAfter = Date.now() + 45_000;
-    changePermissions(session, Boolean(deadline));
+    updatePermission();
     draw();
   };
 
@@ -62,10 +65,15 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
         select.addEventListener('click', () => void run(async () => {
           if (!session) {
             const signed = await api.commercial(`/auth/invitado/${unit.id_vehiculo}`, { method: 'POST' });
-            await changeSession(signed);
+            changeSession(signed);
             await selectUnit(unit);
+            if (session !== signed) return;
             setLease(signed.control_expires_at || signed.expires_at);
-          } else await selectUnit(unit);
+          } else {
+            const signed = session;
+            await selectUnit(unit);
+            if (session !== signed || vehicle !== unit) return;
+          }
           dialog.close();
         }));
         article.append(title, select);
@@ -75,27 +83,33 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
     } catch (error) { if (version === catalogRevision) tell(error.message); }
   }
 
-  async function changeSession(next) {
+  function changeSession(next) {
     ++revision;
     ++catalogRevision;
     session = next;
     auth.token = next?.access_token ?? null;
-    changePermissions(session, Boolean(deadline));
+    updatePermission();
     draw();
   }
 
   async function release() {
-    if (!vehicle || !deadline) return;
+    const selected = vehicle;
+    const signed = session;
+    if (!selected || !deadline) return;
     await stopBeforeRelease();
     await renewal;
-    await api.commercial(`/auth/control/${vehicle.id_vehiculo}`, { method: 'DELETE' });
+    if (session !== signed || vehicle !== selected) return;
+    await api.commercial(`/auth/control/${selected.id_vehiculo}`, { method: 'DELETE' });
+    if (session !== signed || vehicle !== selected) return;
     ++revision;
     setLease(null);
   }
 
   async function selectUnit(next) {
     if (vehicle?.id_vehiculo === next.id_vehiculo) return;
+    const signed = session;
     await release();
+    if (session !== signed) return;
     ++revision;
     vehicle = next;
     await changeVehicle(next);
@@ -103,16 +117,46 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
   }
 
   async function signOut(notify = true) {
-    if (notify && session) {
+    const signed = session;
+    if (notify && signed) {
       await stopBeforeRelease();
       await renewal;
-      await api.commercial('/auth/logout', { method: 'POST' });
+      if (session !== signed) return;
+      try {
+        await api.commercial('/auth/logout', { method: 'POST' });
+      } catch (error) {
+        if (session === signed && error.status !== 401) throw error;
+      }
+      if (session !== signed) return;
     }
     setLease(null);
     vehicle = null;
-    await changeSession(null);
+    changeSession(null);
     await changeVehicle(null);
     if (dialog.open) await loadUnits();
+  }
+
+  async function channelRejected(kind) {
+    if (!session) return;
+    const guest = session.role === 'GUEST';
+    const message = kind === 'forbidden'
+      ? 'Ya no tienes acceso a esta unidad. Selecciona otra disponible.'
+      : guest ? 'La prueba terminó. Selecciona «Probar 15 min» para solicitar otra reserva.'
+        : kind === 'reservation' ? 'La reserva de control terminó. Selecciona «Tomar control» para solicitar otra.'
+          : 'Tu sesión terminó. Vuelve a iniciar sesión.';
+    if (!dialog.open) dialog.showModal();
+    tell(message);
+    if (kind === 'session' || guest) await signOut(false);
+    else if (kind === 'forbidden') {
+      ++revision;
+      setLease(null);
+      vehicle = null;
+      await changeVehicle(null);
+      await loadUnits();
+    } else {
+      ++revision;
+      setLease(null);
+    }
   }
 
   async function run(task) {
@@ -139,7 +183,7 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
     const data = new FormData(form);
     void run(async () => {
       try {
-        await changeSession(await api.commercial('/auth/login', { method: 'POST', body: {
+        changeSession(await api.commercial('/auth/login', { method: 'POST', body: {
           email: data.get('email'), password: data.get('password'),
         } }));
         await loadUnits();
@@ -159,13 +203,14 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
       else await release();
       return;
     }
+    const version = revision;
     const result = await api.commercial(`/auth/control/${vehicle.id_vehiculo}`, { method: 'POST' });
-    setLease(result.control_expires_at || result.expires_at);
+    if (version === revision) setLease(result.control_expires_at || result.expires_at);
   }));
   const tick = setInterval(() => {
     if (!session) return;
     if (duration(session.expires_at, Date.now()) === 0) {
-      void signOut(false);
+      void channelRejected('session');
       return;
     }
     if (deadline && duration(deadline, Date.now()) === 0) setLease(null);
@@ -174,8 +219,10 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
       const version = revision;
       renewal = api.commercial(`/auth/control/${vehicle.id_vehiculo}`, { method: 'POST' }).then(result => {
         if (version === revision && deadline) setLease(result.control_expires_at || result.expires_at);
-      }, () => {
-        if (version === revision) setLease(null);
+      }, error => {
+        if (version !== revision) return;
+        if (error.status === 401) void channelRejected('session');
+        else setLease(null);
       }).finally(() => { renewal = null; });
     }
     draw();
@@ -187,9 +234,17 @@ export function createAccess({ api, auth, changeVehicle, changePermissions, stop
     lostConnection() {
       if (!deadline) return;
       ++revision;
-      setLease(null);
-      if (session?.role === 'GUEST') void signOut(false);
+      if (session?.role === 'GUEST') {
+        guestOffline = true;
+        updatePermission();
+      } else setLease(null);
     },
+    restoredConnection() {
+      if (!guestOffline) return;
+      guestOffline = false;
+      setLease(deadline);
+    },
+    channelRejected,
     destroy() { clearInterval(tick); },
   };
 }

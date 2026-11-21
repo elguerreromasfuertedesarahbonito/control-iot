@@ -5,6 +5,17 @@ const object = (value) => value !== null && typeof value === "object" && !Array.
 const text = (value, limit = 240) => typeof value === "string" && value.length <= limit;
 const uuid = (value) => typeof value === "string" && /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(value);
 const MAX_FRAME_BYTES = 64 * 1024;
+const CLOSE_STATUS = { 4401: 401, 4403: 403, 4409: 409 };
+
+function accessError(status) {
+  switch (status) {
+    case 401: return new ApiError("La sesión terminó. Vuelve a Acceso.", { kind: "session", status });
+    case 403:
+    case 404: return new ApiError("Ya no tienes acceso a esta unidad.", { kind: "forbidden", status });
+    case 409: return new ApiError("La reserva de control terminó.", { kind: "reservation", status });
+    default: return null;
+  }
+}
 
 function socketUrl(config, demoId) {
   if ((demoId !== null && !positiveId(demoId)) || !positiveId(config.vehicleId)) {
@@ -181,15 +192,24 @@ export class DemoSocket {
     const base = Math.min(15000, 1000 * (2 ** Math.min(this._attempt, 4)));
     const delay = Math.min(15000, Math.max(1000, Math.round(base * (0.8 + Math.random() * 0.4))));
     ++this._attempt;
-    this._status("reconnecting", { error, retryInMs: delay });
     this._retryTimer = setTimeout(() => {
       this._retryTimer = null;
       this._open(generation);
     }, delay);
+    this._status("reconnecting", { error, retryInMs: delay });
+  }
+
+  _reject(generation, error) {
+    if (!this._wanted || generation !== this._generation) return;
+    this._reset();
+    this._status("offline", { error });
   }
 
   async _open(generation) {
     if (!this._wanted || generation !== this._generation) return;
+    const previous = this._socket;
+    this._socket = null;
+    try { previous?.close(); } catch { /* El transporte se está cerrando. */ }
     this._status(this._attempt ? "reconnecting" : "connecting");
     let socket;
     try {
@@ -204,8 +224,9 @@ export class DemoSocket {
       }
       socket = new this.WebSocketImpl(url);
     } catch (cause) {
-      if (cause?.status === 401 || cause?.status === 403) {
-        if (generation === this._generation) this._status("offline", { error: cause });
+      const rejection = accessError(cause?.status);
+      if (rejection) {
+        this._reject(generation, rejection);
         return;
       }
       this._retry(generation, new ApiError("No se pudo abrir el canal WebSocket.", { kind: "network", cause }));
@@ -222,7 +243,7 @@ export class DemoSocket {
     const timeout = positiveId(this.config.requestTimeoutMs) ? this.config.requestTimeoutMs : 8000;
     this._welcomeTimer = setTimeout(() => fail(new ApiError("No se recibió la bienvenida del canal.", { kind: "timeout" })), timeout);
     socket.onmessage = ({ data }) => {
-      if (!current() || typeof data !== "string" || data.length > MAX_FRAME_BYTES) return;
+      if (!current() || this._retryTimer !== null || typeof data !== "string" || data.length > MAX_FRAME_BYTES) return;
       if (typeof TextEncoder !== "undefined" && new TextEncoder().encode(data).byteLength > MAX_FRAME_BYTES) return;
       let parsed;
       try { parsed = JSON.parse(data); } catch { return; }
@@ -239,9 +260,17 @@ export class DemoSocket {
       }
       this._emit(this.onEvent, event);
     };
-    socket.onerror = () => fail(new ApiError("Se perdió el canal WebSocket.", { kind: "network" }));
-    socket.onclose = ({ code }) => fail(new ApiError(
-      code === 1008 ? "La demo no existe o está inactiva." : "El canal WebSocket se cerró.", { kind: "network" },
-    ));
+    socket.onerror = () => {
+      if (current()) this._retry(generation, new ApiError("Se perdió el canal WebSocket.", { kind: "network" }));
+    };
+    socket.onclose = ({ code }) => {
+      if (!current()) return;
+      this._socket = null;
+      const rejection = accessError(CLOSE_STATUS[code]);
+      if (rejection) this._reject(generation, rejection);
+      else this._retry(generation, new ApiError(
+        code === 1008 ? "El servidor rechazó el canal WebSocket." : "El canal WebSocket se cerró.", { kind: "network" },
+      ));
+    };
   }
 }

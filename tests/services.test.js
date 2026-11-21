@@ -221,6 +221,70 @@ test('socket switches to reconnecting immediately and recovers after a new welco
   assert.equal(statuses.at(-1), 'online');
 });
 
+test('network closure recovers by requesting a new ticket', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(Math, 'random', () => 0.5);
+  FakeSocket.instances = [];
+  const statuses = [];
+  let tickets = 0;
+  const socket = new DemoSocket(config, { WebSocketImpl: FakeSocket,
+    onStatus: value => statuses.push(value), getTicket: async () => ({ ticket: `ticket-${++tickets}` }) });
+  t.after(() => socket.disconnect());
+  socket.connect(7);
+  await Promise.resolve();
+  const first = FakeSocket.instances[0];
+  first.message(welcome());
+  first.onclose({ code: 1006 });
+  assert.equal(statuses.at(-1), 'reconnecting');
+  t.mock.timers.tick(1000);
+  await Promise.resolve();
+  const second = FakeSocket.instances[1];
+  assert.equal(new URL(first.url).searchParams.get('ticket'), 'ticket-1');
+  assert.equal(new URL(second.url).searchParams.get('ticket'), 'ticket-2');
+  second.message(welcome());
+  assert.equal(statuses.at(-1), 'online');
+});
+
+for (const [code, status, kind] of [[4401, 401, 'session'], [4403, 403, 'forbidden'], [4409, 409, 'reservation']]) {
+  test(`close ${code} stops retry and reports ${kind}`, t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    FakeSocket.instances = [];
+    const statuses = [];
+    const socket = new DemoSocket(config, { WebSocketImpl: FakeSocket,
+      onStatus: (value, detail) => statuses.push({ value, ...detail }) });
+    t.after(() => socket.disconnect());
+    socket.connect(7);
+    const transport = FakeSocket.instances[0];
+    transport.message(welcome());
+    transport.onerror();
+    transport.onclose({ code });
+    assert.equal(statuses.at(-1).value, 'offline');
+    assert.equal(statuses.at(-1).error.kind, kind);
+    assert.equal(statuses.at(-1).error.status, status);
+    t.mock.timers.tick(20000);
+    assert.equal(FakeSocket.instances.length, 1);
+  });
+
+  test(`ticket HTTP ${status} stops retry and reports ${kind}`, async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    FakeSocket.instances = [];
+    const statuses = [];
+    let requests = 0;
+    const socket = new DemoSocket(config, { WebSocketImpl: FakeSocket,
+      onStatus: (value, detail) => statuses.push({ value, ...detail }),
+      getTicket: async () => { ++requests; throw new ApiError('Petición rechazada.', { status }); },
+    });
+    t.after(() => socket.disconnect());
+    socket.connect(7);
+    await Promise.resolve();
+    assert.equal(statuses.at(-1).value, 'offline');
+    assert.equal(statuses.at(-1).error.kind, kind);
+    t.mock.timers.tick(20000);
+    assert.equal(requests, 1);
+    assert.equal(FakeSocket.instances.length, 0);
+  });
+}
+
 test('socket blocks insecure WS on an HTTPS page without opening transport', t => {
   secureLocation(t);
   FakeSocket.instances = [];
