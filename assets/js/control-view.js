@@ -178,7 +178,8 @@ for (const button of accessoryButtons) {
     if (button.disabled) return;
     const accessory = button.dataset.accessory;
     pendingAccessory = accessory;
-    const accepted = await coordinator.tapAccessory(catalog.accessories[accessory]);
+    const label = $(button.getAttribute('aria-labelledby')).textContent;
+    const accepted = await coordinator.tapAccessory(catalog.accessories[accessory], label);
     accessoryStates[accessory] = accepted ? (accessoryStates[accessory] === 'on' ? 'off' : 'on') : 'unknown';
     pendingAccessory = null;
     render();

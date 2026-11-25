@@ -52,7 +52,8 @@ test('each accessory tap sends one POST using its API ID and waits for the pulse
   cooldown.resolve();
   assert.equal(await first, true);
   assert.equal(await coordinator.tapAccessory(light), true);
-  assert.equal(await coordinator.tapAccessory(sound), true);
+  assert.equal(await coordinator.tapAccessory(sound, 'Luz'), true);
+  assert.equal(coordinator.snapshot().action.name, 'Luz');
   assert.deepEqual(calls, [['manual', 310], ['manual', 310], ['manual', 311]]);
   assert.equal(coordinator.mode, 'idle');
 });

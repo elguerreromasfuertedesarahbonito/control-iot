@@ -107,12 +107,12 @@ export class ControlCoordinator {
     } finally { this.running = false; }
   }
 
-  async tapAccessory(command) {
+  async tapAccessory(command, label = command?.nombre) {
     if (!this.ready || this.mode !== 'idle' || !command ||
         !Object.values(this.catalog?.accessories ?? {}).includes(command)) return false;
     const epoch = ++this.epoch;
     this.mode = 'accessory';
-    this.begin(command.nombre);
+    this.begin(label);
     this.message = 'Pulso solicitado. Esperando respuesta de la API.';
     this.emit();
     try {

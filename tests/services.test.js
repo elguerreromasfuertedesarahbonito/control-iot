@@ -137,12 +137,16 @@ test('accessory codes use unique active API IDs and stay out of hold controls', 
     item(312, 10, 'LUZ', { id_vehiculo: 2 }), item(313, 11, 'SONIDO', { activo: false }),
     item(314, 20, 'OTRO')];
   const catalog = buildCatalog(commands, 1);
-  assert.equal(catalog.accessories.light.id_comando, 310);
-  assert.equal(catalog.accessories.sound.id_comando, 311);
+  assert.equal(catalog.accessories.light.id_comando, 311);
+  assert.equal(catalog.accessories.sound.id_comando, 310);
+  assert.equal(catalog.byId.get(310).nombre, 'LUZ');
   assert.deepEqual(catalog.auxiliary.map(command => command.id_comando), [314]);
   const ambiguous = buildCatalog([...commands, item(315, 10, 'LUZ')], 1);
-  assert.equal(ambiguous.accessories.light, null);
-  assert.equal(ambiguous.accessories.sound.id_comando, 311);
+  assert.equal(ambiguous.accessories.sound, null);
+  assert.equal(ambiguous.accessories.light.id_comando, 311);
+  const otherUnit = buildCatalog([...commands, item(316, 11, 'SONIDO', { id_vehiculo: 2 })], 2);
+  assert.equal(otherUnit.accessories.light.id_comando, 312);
+  assert.equal(otherUnit.accessories.sound.id_comando, 316);
 });
 
 class FakeSocket {

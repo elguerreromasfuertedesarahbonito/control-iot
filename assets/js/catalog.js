@@ -13,6 +13,8 @@ const TOOL_NAMES = new Map([
   ["CERRAR_PALA", "right"],
 ]);
 const ACCESSORY_CODES = new Map([[10, 'light'], [11, 'sound']]);
+// Los canales físicos de luz y sonido están cruzados en la excavadora 1.
+const VEHICLE_ONE_ACCESSORY_CODES = new Map([[10, 'sound'], [11, 'light']]);
 
 function normalizeName(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -41,8 +43,9 @@ export function buildCatalog(commands, vehicleId) {
   for (const id of duplicateIds) byId.delete(id);
   const auxiliary = [];
   const ambiguous = new Set();
+  const accessoryCodes = vehicleId === 1 ? VEHICLE_ONE_ACCESSORY_CODES : ACCESSORY_CODES;
   for (const command of byId.values()) {
-    const accessory = ACCESSORY_CODES.get(command.codigo);
+    const accessory = accessoryCodes.get(command.codigo);
     if (accessory) {
       if (accessories[accessory] || ambiguous.has(accessory)) {
         accessories[accessory] = null;
