@@ -234,13 +234,14 @@ placeDemoPanel();
 async function selectDemo() {
   const generation = ++definitionGeneration;
   selectedDemo = Number($('demo-select').value) || null;
-  readyForDemo = false; socketReady = false; updateReady();
+  readyForDemo = false;
   definitionError = '';
   const demo = demos.find(item => item.id_demo === selectedDemo);
-  $('demo-description').textContent = demo?.descripcion || 'Sin descripción adicional.';
-  $('demo-summary').textContent = 'Consultando definición…';
-  if (!demo) { disconnectRoom(); render(); return; }
-  selectRoom(selectedDemo);
+  $('demo-description').textContent = demo ? demo.descripcion || 'Sin descripción adicional.' : '';
+  $('demo-summary').textContent = demo ? 'Consultando definición…' : 'No hay demos disponibles para este acceso.';
+  selectRoom(demo?.id_demo ?? CONFIG.defaultDemoId);
+  render();
+  if (!demo) return;
   try {
     const movements = await api.movements(selectedDemo);
     if (generation !== definitionGeneration) return;
@@ -259,7 +260,7 @@ async function connect() {
   if (['manual', 'accessory', 'demo', 'demo-starting', 'stopping'].includes(coordinator.mode)) { await coordinator.stop(); }
   neutral();
   socketError = ''; apiError = ''; definitionError = '';
-  loading = true; socketReady = false; coordinator.setReady(false); render();
+  readyForDemo = false; coordinator.setReady(false); render();
   if (!simulation && (!CONFIG.apiBaseUrl || !CONFIG.wsUrlTemplate)) {
     loading = false;
     $('vehicle-model').textContent = 'Conexión segura pendiente';
@@ -295,10 +296,9 @@ async function connect() {
       option.textContent = typeof demo.nombre === 'string' ? demo.nombre : `DEMO ${demo.id_demo}`; $('demo-select').append(option); }
     if (demos.some(demo => demo.id_demo === CONFIG.defaultDemoId)) $('demo-select').value = String(CONFIG.defaultDemoId);
     if (!demos.length) {
-      const option = document.createElement('option'); option.value = ''; option.textContent = 'No hay DEMO disponibles'; $('demo-select').append(option);
-      // La API usa una sala de DEMO para difundir también los manuales.
-      selectRoom(CONFIG.defaultDemoId);
-    } else await selectDemo();
+      const option = document.createElement('option'); option.value = ''; option.textContent = 'Sin demos'; $('demo-select').append(option);
+    }
+    await selectDemo();
     if (Object.values(catalog.directions).some(command => command === null)) {
       coordinator.message = 'Faltan direcciones válidas en el catálogo. Sus controles están deshabilitados.';
     }
